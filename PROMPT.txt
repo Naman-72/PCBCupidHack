@@ -1,0 +1,159 @@
+You are an expert frontend engineer who builds clean, interactive, production-quality single-file web apps using HTML, CSS, and vanilla JavaScript (no frameworks).
+
+OUTPUT REQUIREMENT:
+- Return ONLY a single self-contained HTML file with css , js inside the same file 
+- Code must be clean, modular, and well-structured
+
+--------------------------------------------------
+
+GOAL:
+Build an interactive drag-and-drop perfboard simulator.
+
+--------------------------------------------------
+
+CORE CONCEPT:
+
+A perfboard is a 2D grid of holes.
+
+- Grid size: N x N (default N = 8, user adjustable)
+- Each grid cell represents a hole
+- Each hole has a coordinate label:
+  Format: x{col}y{row} (e.g., x1y1, x5y6)
+
+--------------------------------------------------
+
+UI LAYOUT:
+
+1. CENTER:
+   - Render NxN grid
+   - Each cell:
+     - Square
+     - Visible hole label
+     - Snap target for components
+
+2. LEFT SIDEBAR (Component Palette):
+   Draggable components:
+   - Capacitor (polarized)
+   - Resistor (2 variants)
+   - Battery (polarized)
+   - Bulb (3 color polarized variants)
+   - Wire 
+   - Transistor 
+
+3. RIGHT SIDEBAR:
+   Sections:
+   A. State Viewer (JSON preview)
+   B. Demo Loader (predefined templates)
+   C. AI Analyzer:
+      - Input: OpenRouter API key
+      - Button: "Analyze Connections"
+      - Button: "Send to ESP32"
+      - Output box (text response)
+
+--------------------------------------------------
+
+COMPONENT MODEL:
+
+Each component must have:
+
+- Unique ID
+- Type
+- Pins (endpoints)
+- Optional polarity (if applicable)
+
+Example:
+{
+  id: "comp1",
+  type: "resistor",
+  pins: [
+    { name: "A", connected_to: "x1y1" },
+    { name: "B", connected_to: "x1y2" }
+  ]
+}
+
+For polarized components:
+{
+  polarity: {
+    positive: "pinA",
+    negative: "pinB"
+  }
+}
+
+--------------------------------------------------
+
+INTERACTIONS:
+
+1. DRAG & DROP:
+   - Components can be dragged from sidebar to grid
+   - Must SNAP to valid holes only
+
+2. CONNECTION RULES:
+   - Each pin must connect to a valid hole
+   - Components with 2 pins must occupy 2 holes
+   - Minimum spacing between pins = 1 grid unit
+   - Allow stretching (scale length), but must stay aligned to holes
+
+3. VISUALS:
+   - Show components as lines/blocks between holes
+   - Highlight connected endpoints
+
+4. DELETE:
+   - Click component → delete option
+
+--------------------------------------------------
+
+STATE MANAGEMENT:
+
+Maintain a global state:
+
+{
+  components: {
+    comp1: { ... },
+    comp2: { ... }
+  }
+}
+
+- Update state on every interaction
+- Display JSON in right sidebar (live)
+
+--------------------------------------------------
+
+DEMOS:
+
+Provide 2–3 predefined demo states:
+- Simple circuit
+- Battery + bulb
+- Resistor + wire example
+
+Clicking a demo:
+→ Clears board
+→ Loads that state
+
+--------------------------------------------------
+
+AI ANALYZER:
+
+- User enters OpenRouter API key
+- On "Analyze Connections":
+  - Send current state JSON to OpenRouter API
+  - Display response in output box
+
+- On "Send to ESP32":
+  - Send same response (mock API call is fine)
+
+--------------------------------------------------
+
+DESIGN REQUIREMENTS:
+
+- Clean modern UI (soft shadows, spacing, readable fonts)
+- Responsive layout
+- Smooth drag interactions
+- Clear visual feedback (hover, snap, selection)
+
+--------------------------------------------------
+
+IMPORTANT:
+
+- Do NOT overcomplicate physics
+- Focus on usability and clarity
+- Keep logic understandable and extendable

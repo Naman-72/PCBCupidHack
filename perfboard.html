@@ -1,0 +1,1007 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Perfboard Simulator</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f6f3;
+    --surface: #ffffff;
+    --surface2: #f1efe8;
+    --border: rgba(0,0,0,0.12);
+    --border2: rgba(0,0,0,0.22);
+    --text: #1a1a18;
+    --text2: #5f5e5a;
+    --text3: #888780;
+    --accent: #185fa5;
+    --accent-bg: #e6f1fb;
+    --hole: #2c2c2a;
+    --hole-r: 3.5px;
+    --cell: 52px;
+    --radius: 8px;
+    --radius-lg: 12px;
+    --danger: #a32d2d;
+    --danger-bg: #fcebeb;
+    --success: #3b6d11;
+    --success-bg: #eaf3de;
+    --warn: #854f0b;
+    --warn-bg: #faeeda;
+    --snap-color: #1d9e75;
+  }
+
+  body {
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 14px;
+  }
+
+  header {
+    background: var(--surface);
+    border-bottom: 0.5px solid var(--border);
+    padding: 0 1.25rem;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+    z-index: 10;
+  }
+
+  header h1 {
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  header .grid-ctrl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text2);
+  }
+
+  header .grid-ctrl input[type=range] {
+    width: 90px;
+    accent-color: var(--accent);
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 180px 1fr 260px;
+    flex: 1;
+    overflow: hidden;
+    gap: 0;
+  }
+
+  .sidebar {
+    background: var(--surface);
+    border-right: 0.5px solid var(--border);
+    overflow-y: auto;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .sidebar.right {
+    border-right: none;
+    border-left: 0.5px solid var(--border);
+    padding: 10px;
+    gap: 0;
+  }
+
+  .sidebar-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 4px 2px 8px;
+  }
+
+  .comp-card {
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 10px;
+    cursor: grab;
+    background: var(--surface2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+    transition: border-color 0.15s, background 0.15s;
+    font-size: 13px;
+  }
+
+  .comp-card:hover {
+    border-color: var(--accent);
+    background: var(--accent-bg);
+  }
+
+  .comp-card:active { cursor: grabbing; }
+
+  .comp-icon {
+    width: 32px;
+    height: 20px;
+    flex-shrink: 0;
+  }
+
+  .comp-label { font-size: 12px; color: var(--text2); }
+
+  .board-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: auto;
+    padding: 24px;
+    background: var(--bg);
+    position: relative;
+  }
+
+  #board {
+    position: relative;
+    background: #c8a96e;
+    border-radius: 6px;
+    border: 2px solid #8b6914;
+    box-shadow: inset 0 0 0 4px #b8952f, inset 0 0 0 8px #c8a96e;
+  }
+
+  .hole-grid {
+    position: relative;
+    display: grid;
+    gap: 0;
+  }
+
+  .hole {
+    width: var(--cell);
+    height: var(--cell);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .hole-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #2c2c2a;
+    border: 1px solid #111;
+    transition: background 0.1s, transform 0.1s;
+    position: relative;
+    z-index: 1;
+  }
+
+  .hole.snap-target .hole-dot {
+    background: var(--snap-color);
+    transform: scale(1.5);
+  }
+
+  .hole-label {
+    font-size: 8px;
+    color: #8b6914;
+    font-family: monospace;
+    line-height: 1;
+  }
+
+  .hole.occupied .hole-dot {
+    background: var(--accent);
+  }
+
+  .component-layer {
+    position: absolute;
+    top: 0; left: 0;
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  .component-layer svg {
+    overflow: visible;
+  }
+
+  .comp-el {
+    pointer-events: all;
+    cursor: pointer;
+  }
+
+  .comp-el:hover .comp-body { opacity: 0.85; }
+
+  .delete-badge {
+    display: none;
+    position: absolute;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    z-index: 20;
+    cursor: pointer;
+    white-space: nowrap;
+    pointer-events: all;
+  }
+
+  .delete-badge.visible { display: block; }
+
+  .ghost {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+    opacity: 0.75;
+  }
+
+  .right-section {
+    border-bottom: 0.5px solid var(--border);
+    padding: 10px 0;
+  }
+
+  .right-section:last-child { border-bottom: none; }
+
+  .right-section .sec-title {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  .state-box {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    font-size: 10px;
+    font-family: monospace;
+    color: var(--text2);
+    max-height: 120px;
+    overflow-y: auto;
+    word-break: break-all;
+    white-space: pre-wrap;
+    line-height: 1.5;
+  }
+
+  .demo-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 7px 10px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface2);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 5px;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .demo-btn:hover { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+
+  .ai-key {
+    width: 100%;
+    padding: 6px 8px;
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12px;
+    background: var(--surface2);
+    color: var(--text);
+    margin-bottom: 6px;
+    outline: none;
+  }
+
+  .ai-key:focus { border-color: var(--accent); }
+
+  .ai-btn {
+    width: 100%;
+    padding: 7px 10px;
+    border: 0.5px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--surface);
+    cursor: pointer;
+    font-size: 12px;
+    color: var(--text);
+    margin-bottom: 5px;
+    transition: background 0.15s;
+    text-align: left;
+  }
+
+  .ai-btn:hover { background: var(--surface2); }
+
+  .ai-btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
+  .ai-btn.primary:hover { opacity: 0.9; }
+
+  .ai-output {
+    background: var(--surface2);
+    border: 0.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    font-size: 11px;
+    color: var(--text2);
+    min-height: 60px;
+    max-height: 100px;
+    overflow-y: auto;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  .drag-over-board { outline: 2px dashed var(--snap-color); outline-offset: -2px; }
+
+  .sel-ring {
+    stroke: var(--accent);
+    stroke-width: 2;
+    fill: none;
+    stroke-dasharray: 4 2;
+  }
+
+  .badge {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-weight: 500;
+  }
+
+  .badge-polar { background: var(--warn-bg); color: var(--warn); }
+
+  .variant-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .var-chip {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 0.5px solid var(--border);
+    background: var(--surface);
+    cursor: grab;
+    color: var(--text2);
+  }
+
+  .var-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Perfboard Simulator</h1>
+  <div class="grid-ctrl">
+    <span>Grid size:</span>
+    <input type="range" id="grid-size" min="4" max="16" value="8">
+    <span id="grid-size-label">8 × 8</span>
+    <button class="ai-btn" style="padding:4px 10px;font-size:12px;margin:0;" onclick="clearBoard()">Clear</button>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="sidebar" id="palette">
+    <div class="sidebar-title">Components</div>
+  </div>
+
+  <div class="board-area" id="board-area">
+    <div id="board">
+      <div class="hole-grid" id="hole-grid"></div>
+      <div class="component-layer" id="comp-layer">
+        <svg id="comp-svg" width="0" height="0"></svg>
+      </div>
+    </div>
+    <div id="delete-badge" class="delete-badge">Delete</div>
+  </div>
+
+  <div class="sidebar right" id="right-panel">
+    <div class="right-section">
+      <div class="sec-title">State Viewer</div>
+      <div class="state-box" id="state-box">{}</div>
+    </div>
+    <div class="right-section">
+      <div class="sec-title">Demo Loader</div>
+      <button class="demo-btn" onclick="loadDemo('simple')">Simple circuit</button>
+      <button class="demo-btn" onclick="loadDemo('battery-bulb')">Battery + bulb</button>
+      <button class="demo-btn" onclick="loadDemo('resistor-wire')">Resistor + wire</button>
+    </div>
+    <div class="right-section">
+      <div class="sec-title">AI Analyzer</div>
+      <input class="ai-key" type="password" id="ai-key" placeholder="OpenRouter API key">
+      <button class="ai-btn primary" onclick="analyzeCircuit()">Analyze Connections</button>
+      <button class="ai-btn" onclick="sendToESP32()">Send to ESP32</button>
+      <div class="ai-output" id="ai-output">AI response will appear here...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DEFS = {
+  capacitor: {
+    label: 'Capacitor', pins: 2, polar: true,
+    variants: [{ id: 'cap', label: 'Electrolytic' }],
+    icon: (w,h) => `<svg viewBox="0 0 32 20" width="${w}" height="${h}">
+      <line x1="2" y1="10" x2="13" y2="10" stroke="#5f5e5a" stroke-width="2"/>
+      <line x1="13" y1="4" x2="13" y2="16" stroke="#185fa5" stroke-width="2.5"/>
+      <line x1="16" y1="4" x2="16" y2="16" stroke="#5f5e5a" stroke-width="2"/>
+      <line x1="16" y1="10" x2="30" y2="10" stroke="#5f5e5a" stroke-width="2"/>
+      <text x="10" y="4" font-size="6" fill="#185fa5" font-family="monospace">+</text>
+    </svg>`
+  },
+  resistor: {
+    label: 'Resistor', pins: 2, polar: false,
+    variants: [
+      { id: 'res-a', label: '100Ω', color: '#e24b4a' },
+      { id: 'res-b', label: '10kΩ', color: '#f09527' }
+    ],
+    icon: (w,h) => `<svg viewBox="0 0 32 20" width="${w}" height="${h}">
+      <line x1="2" y1="10" x2="7" y2="10" stroke="#5f5e5a" stroke-width="2"/>
+      <rect x="7" y="6" width="18" height="8" rx="1" fill="#faeeda" stroke="#854f0b" stroke-width="1.5"/>
+      <line x1="25" y1="10" x2="30" y2="10" stroke="#5f5e5a" stroke-width="2"/>
+    </svg>`
+  },
+  battery: {
+    label: 'Battery', pins: 2, polar: true,
+    variants: [{ id: 'bat', label: '9V' }],
+    icon: (w,h) => `<svg viewBox="0 0 32 20" width="${w}" height="${h}">
+      <line x1="2" y1="10" x2="10" y2="10" stroke="#5f5e5a" stroke-width="2"/>
+      <line x1="10" y1="5" x2="10" y2="15" stroke="#185fa5" stroke-width="3"/>
+      <line x1="13" y1="7" x2="13" y2="13" stroke="#5f5e5a" stroke-width="1.5"/>
+      <line x1="16" y1="5" x2="16" y2="15" stroke="#185fa5" stroke-width="3"/>
+      <line x1="19" y1="7" x2="19" y2="13" stroke="#5f5e5a" stroke-width="1.5"/>
+      <line x1="19" y1="10" x2="30" y2="10" stroke="#5f5e5a" stroke-width="2"/>
+      <text x="6" y="4" font-size="7" fill="#185fa5" font-family="monospace">+</text>
+    </svg>`
+  },
+  bulb: {
+    label: 'Bulb', pins: 2, polar: false,
+    variants: [
+      { id: 'bulb-r', label: 'Red', color: '#e24b4a' },
+      { id: 'bulb-g', label: 'Green', color: '#639922' },
+      { id: 'bulb-y', label: 'Yellow', color: '#ef9f27' }
+    ],
+    icon: (w,h,color='#ef9f27') => `<svg viewBox="0 0 32 20" width="${w}" height="${h}">
+      <line x1="2" y1="10" x2="9" y2="10" stroke="#5f5e5a" stroke-width="2"/>
+      <circle cx="16" cy="10" r="7" fill="${color}" opacity="0.7" stroke="#5f5e5a" stroke-width="1.5"/>
+      <line x1="14" y1="8" x2="18" y2="12" stroke="#fff" stroke-width="1" opacity="0.6"/>
+      <line x1="23" y1="10" x2="30" y2="10" stroke="#5f5e5a" stroke-width="2"/>
+    </svg>`
+  },
+  wire: {
+    label: 'Wire', pins: 2, polar: false,
+    variants: [
+      { id: 'wire-r', label: 'Red', color: '#e24b4a' },
+      { id: 'wire-b', label: 'Blue', color: '#185fa5' },
+      { id: 'wire-bk', label: 'Black', color: '#2c2c2a' }
+    ],
+    icon: (w,h,color='#e24b4a') => `<svg viewBox="0 0 32 20" width="${w}" height="${h}">
+      <line x1="2" y1="10" x2="30" y2="10" stroke="${color}" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="2" cy="10" r="2.5" fill="${color}"/>
+      <circle cx="30" cy="10" r="2.5" fill="${color}"/>
+    </svg>`
+  },
+  transistor: {
+    label: 'Transistor', pins: 3, polar: false,
+    variants: [{ id: 'trans', label: 'NPN' }],
+    icon: (w,h) => `<svg viewBox="0 0 32 20" width="${w}" height="${h}">
+      <line x1="2" y1="10" x2="10" y2="10" stroke="#5f5e5a" stroke-width="2"/>
+      <line x1="10" y1="4" x2="10" y2="16" stroke="#2c2c2a" stroke-width="2.5"/>
+      <line x1="10" y1="7" x2="22" y2="3" stroke="#5f5e5a" stroke-width="2"/>
+      <line x1="10" y1="13" x2="22" y2="17" stroke="#5f5e5a" stroke-width="2"/>
+      <circle cx="22" cy="10" r="6" fill="none" stroke="#888780" stroke-width="1.5"/>
+      <text x="19" y="13" font-size="7" fill="#5f5e5a" font-family="monospace">n</text>
+    </svg>`
+  }
+};
+
+const VARIANT_COLORS = {
+  'bulb-r': '#e24b4a', 'bulb-g': '#639922', 'bulb-y': '#ef9f27',
+  'wire-r': '#e24b4a', 'wire-b': '#185fa5', 'wire-bk': '#2c2c2a',
+  'res-a': '#e24b4a', 'res-b': '#f09527'
+};
+
+const COMP_COLORS = {
+  capacitor: '#185fa5', resistor: '#854f0b', battery: '#3b6d11',
+  bulb: '#ef9f27', wire: '#e24b4a', transistor: '#5f5e5a'
+};
+
+let N = 8;
+let state = { components: {} };
+let compCounter = 0;
+let selectedId = null;
+let placingComp = null;
+let dragGhost = null;
+
+function uid() { return 'c' + (++compCounter); }
+
+function cellPos(col, row) {
+  return {
+    x: col * N_CELL + N_CELL / 2,
+    y: row * N_CELL + N_CELL / 2
+  };
+}
+
+let N_CELL = 52;
+
+function holeId(col, row) { return `x${col+1}y${row+1}`; }
+function parseHole(id) {
+  const m = id.match(/^x(\d+)y(\d+)$/);
+  return m ? { col: parseInt(m[1])-1, row: parseInt(m[2])-1 } : null;
+}
+
+function buildPalette() {
+  const pal = document.getElementById('palette');
+  pal.innerHTML = '<div class="sidebar-title">Components</div>';
+  Object.entries(DEFS).forEach(([type, def]) => {
+    const wrap = document.createElement('div');
+    def.variants.forEach(v => {
+      const card = document.createElement('div');
+      card.className = 'comp-card';
+      card.draggable = true;
+      const color = VARIANT_COLORS[v.id] || COMP_COLORS[type];
+      card.innerHTML = `
+        <div class="comp-icon">${def.icon(32, 20, color)}</div>
+        <div>
+          <div style="font-size:12px;font-weight:500">${def.label}</div>
+          <div class="comp-label">${v.label}${def.polar ? ' <span class="badge badge-polar">±</span>' : ''}</div>
+        </div>
+      `;
+      card.addEventListener('dragstart', e => {
+        placingComp = { type, variantId: v.id, color };
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('text/plain', type);
+      });
+      card.addEventListener('dragend', () => { placingComp = null; });
+      wrap.appendChild(card);
+    });
+    pal.appendChild(wrap);
+  });
+}
+
+function buildGrid() {
+  const grid = document.getElementById('hole-grid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = `repeat(${N}, ${N_CELL}px)`;
+  for (let r = 0; r < N; r++) {
+    for (let c = 0; c < N; c++) {
+      const cell = document.createElement('div');
+      cell.className = 'hole';
+      cell.dataset.col = c;
+      cell.dataset.row = r;
+      cell.dataset.hid = holeId(c, r);
+      cell.innerHTML = `<div class="hole-dot"></div><div class="hole-label">${holeId(c,r)}</div>`;
+      cell.addEventListener('click', () => onHoleClick(c, r));
+      grid.appendChild(cell);
+    }
+  }
+
+  const svg = document.getElementById('comp-svg');
+  const size = N * N_CELL;
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+  document.getElementById('board').style.width = size + 'px';
+  document.getElementById('board').style.height = size + 'px';
+}
+
+function onHoleClick(col, row) {
+  if (selectedId) {
+    deselect();
+    return;
+  }
+}
+
+function getHoleCenter(hid) {
+  const h = parseHole(hid);
+  if (!h) return null;
+  return { x: h.col * N_CELL + N_CELL/2, y: h.row * N_CELL + N_CELL/2 };
+}
+
+function getTypeForVariant(variantId) {
+  for (const [type, def] of Object.entries(DEFS)) {
+    if (def.variants.some(v => v.id === variantId)) return type;
+  }
+  return null;
+}
+
+function addComponent(type, variantId, pinHoles) {
+  const def = DEFS[type];
+  const id = uid();
+  const color = VARIANT_COLORS[variantId] || COMP_COLORS[type];
+  const comp = {
+    id, type, variantId, color,
+    pins: pinHoles.map((hid, i) => ({ name: String.fromCharCode(65+i), connected_to: hid }))
+  };
+  if (def.polar) {
+    comp.polarity = { positive: 'A', negative: 'B' };
+  }
+  state.components[id] = comp;
+  renderComponents();
+  updateState();
+  markOccupied();
+}
+
+function renderComponents() {
+  const svg = document.getElementById('comp-svg');
+  svg.innerHTML = '';
+
+  Object.values(state.components).forEach(comp => {
+    const def = DEFS[comp.type];
+    const pins = comp.pins;
+    const p0 = getHoleCenter(pins[0].connected_to);
+    const p1 = pins[1] ? getHoleCenter(pins[1].connected_to) : null;
+    const p2 = pins[2] ? getHoleCenter(pins[2].connected_to) : null;
+
+    if (!p0) return;
+
+    const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    g.classList.add('comp-el');
+    g.dataset.id = comp.id;
+
+    if (comp.type === 'wire') {
+      if (p1) {
+        const line = makeLine(p0, p1, comp.color, 3);
+        g.appendChild(line);
+        g.appendChild(makeDot(p0, comp.color));
+        g.appendChild(makeDot(p1, comp.color));
+      }
+    } else if (comp.type === 'resistor') {
+      if (p1) {
+        const dx = p1.x - p0.x, dy = p1.y - p0.y;
+        const len = Math.sqrt(dx*dx+dy*dy);
+        const angle = Math.atan2(dy, dx) * 180/Math.PI;
+        g.appendChild(makeLine(p0, p1, '#888780', 1.5));
+        const mx = (p0.x+p1.x)/2, my = (p0.y+p1.y)/2;
+        const bw = Math.min(len*0.5, 28), bh = 10;
+        const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rect.setAttribute('x', mx - bw/2);
+        rect.setAttribute('y', my - bh/2);
+        rect.setAttribute('width', bw);
+        rect.setAttribute('height', bh);
+        rect.setAttribute('rx', 2);
+        rect.setAttribute('fill', comp.color === '#e24b4a' ? '#f7c1c1' : '#fac775');
+        rect.setAttribute('stroke', comp.color);
+        rect.setAttribute('stroke-width', 1.5);
+        rect.setAttribute('transform', `rotate(${angle}, ${mx}, ${my})`);
+        g.appendChild(rect);
+        g.appendChild(makeDot(p0, '#888780'));
+        g.appendChild(makeDot(p1, '#888780'));
+      }
+    } else if (comp.type === 'capacitor') {
+      if (p1) {
+        const mx = (p0.x+p1.x)/2, my = (p0.y+p1.y)/2;
+        const dx = p1.x-p0.x, dy = p1.y-p0.y;
+        const angle = Math.atan2(dy,dx)*180/Math.PI;
+        g.appendChild(makeLine(p0, {x:mx-5,y:my}, '#888780', 1.5));
+        g.appendChild(makeLine({x:mx+5,y:my}, p1, '#888780', 1.5));
+        [mx-5, mx+4].forEach((x,i) => {
+          const l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+          l.setAttribute('x1', x); l.setAttribute('y1', my-9);
+          l.setAttribute('x2', x); l.setAttribute('y2', my+9);
+          l.setAttribute('stroke', i===0 ? '#185fa5' : '#888780');
+          l.setAttribute('stroke-width', i===0?3:2);
+          l.setAttribute('transform', `rotate(${angle},${mx},${my})`);
+          g.appendChild(l);
+        });
+        const plusSign = document.createElementNS('http://www.w3.org/2000/svg','text');
+        plusSign.setAttribute('x', mx-8);
+        plusSign.setAttribute('y', my-10);
+        plusSign.setAttribute('font-size', 8);
+        plusSign.setAttribute('fill', '#185fa5');
+        plusSign.textContent = '+';
+        g.appendChild(plusSign);
+        g.appendChild(makeDot(p0,'#185fa5'));
+        g.appendChild(makeDot(p1,'#888780'));
+      }
+    } else if (comp.type === 'battery') {
+      if (p1) {
+        const mx = (p0.x+p1.x)/2, my = (p0.y+p1.y)/2;
+        const dx = p1.x-p0.x, dy = p1.y-p0.y;
+        const angle = Math.atan2(dy,dx)*180/Math.PI;
+        g.appendChild(makeLine(p0, {x:mx-5,y:my}, '#3b6d11', 1.5));
+        g.appendChild(makeLine({x:mx+10,y:my}, p1, '#3b6d11', 1.5));
+        [[mx-6,3,14,'#185fa5'],[mx-1,2,10,'#888780'],[mx+4,3,14,'#185fa5'],[mx+9,2,10,'#888780']].forEach(([x,w,hh,sc])=>{
+          const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+          l.setAttribute('x1',x);l.setAttribute('y1',my-hh/2);
+          l.setAttribute('x2',x);l.setAttribute('y2',my+hh/2);
+          l.setAttribute('stroke',sc);l.setAttribute('stroke-width',w);
+          l.setAttribute('transform',`rotate(${angle},${mx},${my})`);
+          g.appendChild(l);
+        });
+        const pt = document.createElementNS('http://www.w3.org/2000/svg','text');
+        pt.setAttribute('x',mx-10);pt.setAttribute('y',my-10);
+        pt.setAttribute('font-size',8);pt.setAttribute('fill','#185fa5');
+        pt.textContent='+';g.appendChild(pt);
+        g.appendChild(makeDot(p0,'#185fa5'));
+        g.appendChild(makeDot(p1,'#888780'));
+      }
+    } else if (comp.type === 'bulb') {
+      if (p1) {
+        const mx=(p0.x+p1.x)/2, my=(p0.y+p1.y)/2;
+        g.appendChild(makeLine(p0,{x:mx,y:my},'#888780',1.5));
+        g.appendChild(makeLine({x:mx,y:my},p1,'#888780',1.5));
+        const circ = document.createElementNS('http://www.w3.org/2000/svg','circle');
+        circ.setAttribute('cx',mx);circ.setAttribute('cy',my);
+        circ.setAttribute('r',10);
+        circ.setAttribute('fill',comp.color);circ.setAttribute('opacity','0.65');
+        circ.setAttribute('stroke','#888780');circ.setAttribute('stroke-width',1.5);
+        g.appendChild(circ);
+        const shine = document.createElementNS('http://www.w3.org/2000/svg','line');
+        shine.setAttribute('x1',mx-4);shine.setAttribute('y1',my-4);
+        shine.setAttribute('x2',mx+4);shine.setAttribute('y2',my+4);
+        shine.setAttribute('stroke','rgba(255,255,255,0.6)');shine.setAttribute('stroke-width',1.5);
+        g.appendChild(shine);
+        g.appendChild(makeDot(p0,'#888780'));
+        g.appendChild(makeDot(p1,'#888780'));
+      }
+    } else if (comp.type === 'transistor') {
+      if (p1 && p2) {
+        const bx=p0.x, by=p0.y;
+        const cx=p1.x, cy=p1.y;
+        const ex=p2.x, ey=p2.y;
+        const mx=(cx+ex)/2, my=(cy+ey)/2;
+        g.appendChild(makeLine({x:bx,y:by},{x:(bx+mx)/2,y:(by+my)/2},'#888780',1.5));
+        const vline=document.createElementNS('http://www.w3.org/2000/svg','line');
+        vline.setAttribute('x1',(bx+mx)/2);vline.setAttribute('y1',cy);
+        vline.setAttribute('x2',(bx+mx)/2);vline.setAttribute('y2',ey);
+        vline.setAttribute('stroke','#2c2c2a');vline.setAttribute('stroke-width',2.5);
+        g.appendChild(vline);
+        g.appendChild(makeLine({x:(bx+mx)/2,y:cy},{x:cx,y:cy},'#888780',1.5));
+        g.appendChild(makeLine({x:(bx+mx)/2,y:ey},{x:ex,y:ey},'#888780',1.5));
+        const circ2=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        circ2.setAttribute('cx',mx);circ2.setAttribute('cy',my);
+        circ2.setAttribute('r',12);
+        circ2.setAttribute('fill','none');circ2.setAttribute('stroke','#888780');circ2.setAttribute('stroke-width',1.5);
+        g.appendChild(circ2);
+        g.appendChild(makeDot(p0,'#5f5e5a'));
+        g.appendChild(makeDot(p1,'#5f5e5a'));
+        g.appendChild(makeDot(p2,'#5f5e5a'));
+      }
+    }
+
+    if (selectedId === comp.id) {
+      const allPts = comp.pins.map(p => getHoleCenter(p.connected_to)).filter(Boolean);
+      if (allPts.length) {
+        const xs = allPts.map(p=>p.x), ys = allPts.map(p=>p.y);
+        const rx = Math.min(...xs)-16, ry = Math.min(...ys)-16;
+        const rw = Math.max(...xs)-rx+16, rh = Math.max(...ys)-ry+16;
+        const sr = document.createElementNS('http://www.w3.org/2000/svg','rect');
+        sr.setAttribute('x',rx);sr.setAttribute('y',ry);
+        sr.setAttribute('width',rw);sr.setAttribute('height',rh);
+        sr.setAttribute('rx',6);
+        sr.setAttribute('class','sel-ring');
+        g.appendChild(sr);
+      }
+    }
+
+    g.addEventListener('click', e => { e.stopPropagation(); selectComp(comp.id, g); });
+    svg.appendChild(g);
+  });
+}
+
+function makeLine(p0, p1, color, w) {
+  const l = document.createElementNS('http://www.w3.org/2000/svg','line');
+  l.setAttribute('x1',p0.x);l.setAttribute('y1',p0.y);
+  l.setAttribute('x2',p1.x);l.setAttribute('y2',p1.y);
+  l.setAttribute('stroke',color);l.setAttribute('stroke-width',w);
+  l.setAttribute('stroke-linecap','round');
+  return l;
+}
+
+function makeDot(p, color) {
+  const c = document.createElementNS('http://www.w3.org/2000/svg','circle');
+  c.setAttribute('cx',p.x);c.setAttribute('cy',p.y);c.setAttribute('r',4);
+  c.setAttribute('fill',color);
+  return c;
+}
+
+function selectComp(id, g) {
+  selectedId = id;
+  renderComponents();
+  const badge = document.getElementById('delete-badge');
+  const comp = state.components[id];
+  if (!comp) return;
+  const p0 = getHoleCenter(comp.pins[0].connected_to);
+  if (!p0) return;
+  const board = document.getElementById('board');
+  const br = board.getBoundingClientRect();
+  badge.style.left = (p0.x + br.left + 8) + 'px';
+  badge.style.top = (p0.y + br.top - 26) + 'px';
+  badge.classList.add('visible');
+}
+
+function deselect() {
+  selectedId = null;
+  renderComponents();
+  document.getElementById('delete-badge').classList.remove('visible');
+}
+
+document.getElementById('delete-badge').addEventListener('click', () => {
+  if (selectedId) {
+    delete state.components[selectedId];
+    selectedId = null;
+    document.getElementById('delete-badge').classList.remove('visible');
+    renderComponents();
+    updateState();
+    markOccupied();
+  }
+});
+
+document.getElementById('board-area').addEventListener('click', () => deselect());
+
+function markOccupied() {
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('occupied'));
+  Object.values(state.components).forEach(comp => {
+    comp.pins.forEach(p => {
+      const el = document.querySelector(`.hole[data-hid="${p.connected_to}"]`);
+      if (el) el.classList.add('occupied');
+    });
+  });
+}
+
+function updateState() {
+  const box = document.getElementById('state-box');
+  box.textContent = JSON.stringify(state, null, 2);
+}
+
+function clearBoard() {
+  state = { components: {} };
+  compCounter = 0;
+  selectedId = null;
+  document.getElementById('delete-badge').classList.remove('visible');
+  renderComponents();
+  updateState();
+  markOccupied();
+}
+
+function loadDemo(name) {
+  clearBoard();
+  if (name === 'simple') {
+    addComponent('resistor', 'res-a', ['x1y1','x3y1']);
+    addComponent('wire', 'wire-r', ['x3y1','x5y1']);
+    addComponent('wire', 'wire-bk', ['x1y1','x1y3']);
+    addComponent('wire', 'wire-bk', ['x5y1','x5y3']);
+  } else if (name === 'battery-bulb') {
+    addComponent('battery', 'bat', ['x1y2','x1y6']);
+    addComponent('wire', 'wire-r', ['x1y2','x5y2']);
+    addComponent('bulb', 'bulb-y', ['x5y2','x5y6']);
+    addComponent('wire', 'wire-bk', ['x5y6','x1y6']);
+  } else if (name === 'resistor-wire') {
+    addComponent('resistor', 'res-b', ['x2y2','x5y2']);
+    addComponent('wire', 'wire-b', ['x5y2','x7y2']);
+    addComponent('capacitor', 'cap', ['x2y4','x5y4']);
+    addComponent('wire', 'wire-r', ['x2y2','x2y4']);
+  }
+}
+
+const boardArea = document.getElementById('board-area');
+const board = document.getElementById('board');
+
+boardArea.addEventListener('dragover', e => {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'copy';
+  board.classList.add('drag-over-board');
+  const closest = getClosestHole(e.clientX, e.clientY);
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('snap-target'));
+  if (closest) closest.classList.add('snap-target');
+});
+
+boardArea.addEventListener('dragleave', e => {
+  if (!board.contains(e.relatedTarget)) {
+    board.classList.remove('drag-over-board');
+    document.querySelectorAll('.hole').forEach(h => h.classList.remove('snap-target'));
+  }
+});
+
+boardArea.addEventListener('drop', e => {
+  e.preventDefault();
+  board.classList.remove('drag-over-board');
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('snap-target'));
+
+  if (!placingComp) return;
+  const { type, variantId } = placingComp;
+  const def = DEFS[type];
+
+  const dropHole = getClosestHole(e.clientX, e.clientY);
+  if (!dropHole) return;
+
+  const col = parseInt(dropHole.dataset.col);
+  const row = parseInt(dropHole.dataset.row);
+
+  if (def.pins === 2) {
+    const secondCol = col + 2 < N ? col + 2 : col - 2;
+    const h0 = holeId(col, row);
+    const h1 = holeId(Math.max(0, secondCol), row);
+    if (h0 !== h1) addComponent(type, variantId, [h0, h1]);
+    else addComponent(type, variantId, [h0, holeId(Math.min(col+2,N-1), row)]);
+  } else if (def.pins === 3) {
+    const h0 = holeId(col, row);
+    const h1 = holeId(Math.min(col+2, N-1), Math.max(row-2, 0));
+    const h2 = holeId(Math.min(col+2, N-1), Math.min(row+2, N-1));
+    addComponent(type, variantId, [h0, h1, h2]);
+  }
+});
+
+function getClosestHole(cx, cy) {
+  let best = null, bestD = 999;
+  document.querySelectorAll('.hole').forEach(h => {
+    const r = h.getBoundingClientRect();
+    const hx = r.left + r.width/2, hy = r.top + r.height/2;
+    const d = Math.hypot(cx-hx, cy-hy);
+    if (d < bestD) { bestD = d; best = h; }
+  });
+  return bestD < N_CELL ? best : null;
+}
+
+const gridSlider = document.getElementById('grid-size');
+const gridLabel = document.getElementById('grid-size-label');
+gridSlider.addEventListener('input', () => {
+  N = parseInt(gridSlider.value);
+  gridLabel.textContent = `${N} × ${N}`;
+  clearBoard();
+  buildGrid();
+});
+
+async function analyzeCircuit() {
+  const key = document.getElementById('ai-key').value.trim();
+  const out = document.getElementById('ai-output');
+  if (!key) { out.textContent = 'Please enter your OpenRouter API key.'; return; }
+  if (!Object.keys(state.components).length) { out.textContent = 'No components on board.'; return; }
+
+  out.textContent = 'Analyzing...';
+  const prompt = `You are an electronics expert. Analyze this perfboard circuit and describe what it does, check for issues, and suggest improvements.\n\nCircuit JSON:\n${JSON.stringify(state, null, 2)}`;
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://perfboard-simulator.local',
+        'X-Title': 'Perfboard Simulator'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 400
+      })
+    });
+    const data = await res.json();
+    if (data.choices && data.choices[0]) {
+      out.textContent = data.choices[0].message.content;
+    } else {
+      out.textContent = 'Error: ' + (data.error?.message || JSON.stringify(data));
+    }
+  } catch (err) {
+    out.textContent = 'Request failed: ' + err.message;
+  }
+}
+
+function sendToESP32() {
+  const out = document.getElementById('ai-output');
+  const payload = JSON.stringify(state, null, 2);
+  out.textContent = '[ESP32 mock]\nPOST /api/upload\nPayload size: ' + payload.length + ' bytes\n\nStatus: 200 OK\nDevice acknowledged circuit config.\n\n' + payload.substring(0, 200) + (payload.length > 200 ? '...' : '');
+}
+
+buildPalette();
+buildGrid();
+updateState();
+</script>
+</body>
+</html>

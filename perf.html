@@ -1,0 +1,1334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simple Perfboard Builder</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #eef2f7;
+      --panel: #ffffff;
+      --border: #d8dee8;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --danger: #dc2626;
+      --danger-soft: #fee2e2;
+      --success: #16a34a;
+      --success-soft: #dcfce7;
+      --card: #f8fafc;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      --toolbar-h: 60px;
+      --sidebar-w: 220px;
+      --font: Inter, Arial, sans-serif;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+    }
+
+    #toolbar {
+      height: var(--toolbar-h);
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 16px;
+      box-shadow: var(--shadow);
+      z-index: 20;
+      flex-shrink: 0;
+    }
+
+    .brand {
+      font-size: 18px;
+      font-weight: 700;
+      margin-right: 10px;
+      white-space: nowrap;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .toolbar-sep {
+      width: 1px;
+      height: 28px;
+      background: var(--border);
+      margin: 0 4px;
+    }
+
+    .tool-btn,
+    .btn {
+      height: 36px;
+      padding: 0 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: #fff;
+      color: var(--text);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    .tool-btn:hover,
+    .btn:hover {
+      background: var(--card);
+    }
+
+    .tool-btn.active {
+      background: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-primary {
+      background: var(--success);
+      color: #fff;
+      border-color: var(--success);
+    }
+
+    .btn-primary:hover {
+      filter: brightness(1.05);
+    }
+
+    .btn-danger {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border-color: #fca5a5;
+    }
+
+    .btn-danger:hover {
+      background: #fecaca;
+    }
+
+    .size-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+    }
+
+    .size-wrap label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .size-wrap input {
+      width: 72px;
+      height: 36px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0 10px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    .size-wrap input:focus {
+      border-color: var(--accent);
+    }
+
+    #status {
+      min-width: 220px;
+      max-width: 320px;
+      font-size: 12px;
+      color: var(--muted);
+      padding-left: 8px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #app {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    #sidebar {
+      width: var(--sidebar-w);
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      padding: 14px;
+      overflow-y: auto;
+      flex-shrink: 0;
+    }
+
+    .side-title {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .palette-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .palette-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      cursor: grab;
+      transition: 0.15s ease;
+      user-select: none;
+    }
+
+    .palette-item:hover {
+      border-color: var(--accent);
+      background: #eff6ff;
+      transform: translateY(-1px);
+    }
+
+    .palette-item:active {
+      cursor: grabbing;
+    }
+
+    .pal-icon {
+      width: 46px;
+      height: 46px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      flex-shrink: 0;
+    }
+
+    .palette-item span {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .sidebar-note {
+      margin-top: 18px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: var(--muted);
+      padding: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    #main {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at center, rgba(255,255,255,0.9), rgba(226,232,240,0.85)),
+        #e2e8f0;
+    }
+
+    #main-svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #main-svg.mode-wire {
+      cursor: crosshair;
+    }
+
+    #main-svg.mode-delete {
+      cursor: cell;
+    }
+
+    .board-hole {
+      cursor: pointer;
+      transition: 0.1s ease;
+    }
+
+    .board-hole:hover {
+      fill: #60a5fa !important;
+    }
+
+    .comp-group {
+      cursor: grab;
+    }
+
+    .comp-group:active {
+      cursor: grabbing;
+    }
+
+    .comp-group.selected .comp-box {
+      stroke: #2563eb !important;
+      stroke-width: 2 !important;
+      stroke-dasharray: 5 3;
+    }
+
+    .comp-pin {
+      fill: #6b7280;
+      stroke: #374151;
+      stroke-width: 0.8;
+      cursor: crosshair;
+    }
+
+    .comp-pin:hover {
+      fill: #f59e0b;
+    }
+
+    .comp-pin.connected {
+      fill: #16a34a;
+    }
+
+    .wire-path {
+      fill: none;
+      stroke-width: 3.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      opacity: 0.95;
+    }
+
+    .wire-hit {
+      fill: none;
+      stroke: transparent;
+      stroke-width: 14;
+      cursor: pointer;
+    }
+
+    .wire-preview {
+      fill: none;
+      stroke: #ef4444;
+      stroke-width: 2.5;
+      stroke-dasharray: 6 4;
+      opacity: 0.7;
+    }
+
+    .led-on-red {
+      fill: #ff3b3b !important;
+      filter: drop-shadow(0 0 8px #ff3b3b);
+    }
+
+    .led-on-green {
+      fill: #22c55e !important;
+      filter: drop-shadow(0 0 8px #22c55e);
+    }
+
+    .led-on-blue {
+      fill: #3b82f6 !important;
+      filter: drop-shadow(0 0 8px #3b82f6);
+    }
+
+    #toast {
+      position: fixed;
+      left: 50%;
+      bottom: 22px;
+      transform: translateX(-50%);
+      background: #111827;
+      color: #fff;
+      padding: 10px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 1000;
+    }
+
+    #toast.show {
+      opacity: 1;
+    }
+
+    @media (max-width: 900px) {
+      html, body {
+        overflow: auto;
+      }
+
+      #app {
+        flex-direction: column;
+      }
+
+      #sidebar {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid var(--border);
+      }
+
+      #main {
+        min-height: 70vh;
+      }
+
+      #toolbar {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 10px 12px;
+      }
+
+      .size-wrap {
+        margin-left: 0;
+      }
+
+      #status {
+        width: 100%;
+        max-width: none;
+        min-width: 0;
+        padding-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header id="toolbar">
+    <div class="brand">Simple Perfboard</div>
+
+    <div class="toolbar-group">
+      <button class="tool-btn active" id="tool-select">Select</button>
+      <button class="tool-btn" id="tool-wire">Wire</button>
+      <button class="tool-btn" id="tool-delete">Delete</button>
+    </div>
+
+    <div class="toolbar-sep"></div>
+
+    <div class="toolbar-group">
+      <button class="btn btn-primary" id="btn-run">Run</button>
+      <button class="btn hidden" id="btn-stop" style="display:none;">Stop</button>
+      <button class="btn btn-danger" id="btn-clear">Clear</button>
+    </div>
+
+    <div class="size-wrap">
+      <label for="board-size">Board size</label>
+      <input id="board-size" type="number" min="4" max="30" value="12" />
+      <button class="btn" id="btn-apply-size">Apply</button>
+    </div>
+
+    <div id="status">Ready — choose a component and drag it to the board</div>
+  </header>
+
+  <div id="app">
+    <aside id="sidebar">
+      <div class="side-title">Components</div>
+
+      <div class="palette-grid">
+        <div class="palette-item" draggable="true" data-type="battery">
+          <div class="pal-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30">
+              <rect x="4" y="8" width="18" height="14" rx="3" fill="#f0c040" stroke="#c89000" stroke-width="1.5"/>
+              <rect x="22" y="11" width="4" height="8" rx="1" fill="#888"/>
+              <text x="8" y="17" font-size="8" font-weight="700" fill="#333">+</text>
+              <text x="17" y="17" font-size="8" font-weight="700" fill="#333">−</text>
+            </svg>
+          </div>
+          <span>Battery</span>
+        </div>
+
+        <div class="palette-item" draggable="true" data-type="button">
+          <div class="pal-icon">
+            <svg width="30" height="30" viewBox="0 0 30 30">
+              <rect x="4" y="4" width="22" height="22" rx="4" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.4"/>
+              <circle cx="15" cy="15" r="7" fill="#2563eb"/>
+            </svg>
+          </div>
+          <span>Push Button</span>
+        </div>
+
+        <div class="palette-item" draggable="true" data-type="led_red">
+          <div class="pal-icon">
+            <svg width="24" height="30" viewBox="0 0 24 30">
+              <ellipse cx="12" cy="11" rx="8" ry="9" fill="#ef4444" stroke="#b91c1c" stroke-width="1.2"/>
+              <line x1="9" y1="20" x2="9" y2="29" stroke="#666" stroke-width="2"/>
+              <line x1="15" y1="20" x2="15" y2="29" stroke="#666" stroke-width="2"/>
+            </svg>
+          </div>
+          <span>LED Red</span>
+        </div>
+
+        <div class="palette-item" draggable="true" data-type="led_green">
+          <div class="pal-icon">
+            <svg width="24" height="30" viewBox="0 0 24 30">
+              <ellipse cx="12" cy="11" rx="8" ry="9" fill="#22c55e" stroke="#15803d" stroke-width="1.2"/>
+              <line x1="9" y1="20" x2="9" y2="29" stroke="#666" stroke-width="2"/>
+              <line x1="15" y1="20" x2="15" y2="29" stroke="#666" stroke-width="2"/>
+            </svg>
+          </div>
+          <span>LED Green</span>
+        </div>
+
+        <div class="palette-item" draggable="true" data-type="led_blue">
+          <div class="pal-icon">
+            <svg width="24" height="30" viewBox="0 0 24 30">
+              <ellipse cx="12" cy="11" rx="8" ry="9" fill="#3b82f6" stroke="#1d4ed8" stroke-width="1.2"/>
+              <line x1="9" y1="20" x2="9" y2="29" stroke="#666" stroke-width="2"/>
+              <line x1="15" y1="20" x2="15" y2="29" stroke="#666" stroke-width="2"/>
+            </svg>
+          </div>
+          <span>LED Blue</span>
+        </div>
+      </div>
+
+      <div class="sidebar-note">
+        Use <strong>Select</strong> to move parts, <strong>Wire</strong> to connect pins and holes, and <strong>Delete</strong> to remove items.
+        <br><br>
+        You can change the board to any square size like <strong>8×8</strong>, <strong>12×12</strong>, <strong>20×20</strong>.
+      </div>
+    </aside>
+
+    <main id="main">
+      <svg id="main-svg" xmlns="http://www.w3.org/2000/svg">
+        <g id="viewport">
+          <g id="board-layer"></g>
+          <g id="wire-layer"></g>
+          <g id="component-layer"></g>
+          <g id="preview-layer"></g>
+        </g>
+      </svg>
+    </main>
+  </div>
+
+  <div id="toast"></div>
+
+  <script>
+    const HOLE_SPACING = 34;
+    const HOLE_RADIUS = 4;
+    const SNAP_RADIUS = 16;
+    const BOARD_PADDING = 70;
+
+    const state = {
+      boardSize: 12,
+      offsetX: 140,
+      offsetY: 110,
+      mode: "select",
+      components: [],
+      wires: [],
+      selected: null,
+      dragging: null,
+      wireStart: null,
+      simRunning: false,
+      _id: 1
+    };
+
+    function newId() {
+      return "n" + state._id++;
+    }
+
+    function setStatus(text) {
+      document.getElementById("status").textContent = text;
+    }
+
+    let toastTimer = null;
+    function showToast(text) {
+      const t = document.getElementById("toast");
+      t.textContent = text;
+      t.classList.add("show");
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+    }
+
+    function svgEl(tag, attrs = {}) {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        el.setAttribute(k, v);
+      }
+      return el;
+    }
+
+    function svgPoint(evt) {
+      const svg = document.getElementById("main-svg");
+      const rect = svg.getBoundingClientRect();
+      return {
+        x: evt.clientX - rect.left,
+        y: evt.clientY - rect.top
+      };
+    }
+
+    function boardHolePos(row, col) {
+      return {
+        x: state.offsetX + col * HOLE_SPACING,
+        y: state.offsetY + row * HOLE_SPACING
+      };
+    }
+
+    function nodeId(row, col) {
+      return `h:${row}:${col}`;
+    }
+
+    function allHoles() {
+      const holes = [];
+      for (let r = 0; r < state.boardSize; r++) {
+        for (let c = 0; c < state.boardSize; c++) {
+          const p = boardHolePos(r, c);
+          holes.push({
+            row: r,
+            col: c,
+            x: p.x,
+            y: p.y,
+            nodeId: nodeId(r, c),
+            label: `${r + 1},${c + 1}`
+          });
+        }
+      }
+      return holes;
+    }
+
+    function nearestHole(x, y) {
+      let best = null;
+      let bestD = SNAP_RADIUS;
+      for (const h of allHoles()) {
+        const d = Math.hypot(x - h.x, y - h.y);
+        if (d < bestD) {
+          best = h;
+          bestD = d;
+        }
+      }
+      return best;
+    }
+
+    function makeBattery() {
+      return {
+        label: "Battery",
+        width: 78,
+        height: 36,
+        pins: [
+          { name: "positive", dx: -10, dy: 18, nodeId: null },
+          { name: "negative", dx: 88, dy: 18, nodeId: null }
+        ],
+        render() {
+          return `
+            <rect x="0" y="6" width="78" height="24" rx="5" fill="#f0c040" stroke="#c89000" stroke-width="1.5"></rect>
+            <text x="39" y="22" text-anchor="middle" font-size="10" font-weight="700" fill="#222">9V</text>
+            <text x="8" y="22" font-size="10" font-weight="700" fill="#b91c1c">+</text>
+            <text x="62" y="22" font-size="10" font-weight="700" fill="#4b5563">−</text>
+            <line x1="-10" y1="18" x2="0" y2="18" stroke="#b91c1c" stroke-width="2"></line>
+            <line x1="78" y1="18" x2="88" y2="18" stroke="#4b5563" stroke-width="2"></line>
+          `;
+        }
+      };
+    }
+
+    function makeButton() {
+      return {
+        label: "Push Button",
+        width: 52,
+        height: 52,
+        pins: [
+          { name: "leftTop", dx: -8, dy: 14, nodeId: null },
+          { name: "leftBottom", dx: -8, dy: 38, nodeId: null },
+          { name: "rightTop", dx: 60, dy: 14, nodeId: null },
+          { name: "rightBottom", dx: 60, dy: 38, nodeId: null }
+        ],
+        render(comp) {
+          const pressed = !!comp.simState.pressed;
+          return `
+            <rect x="4" y="4" width="44" height="44" rx="7" fill="#dbeafe" stroke="#93c5fd" stroke-width="1.4"></rect>
+            <circle cx="26" cy="${pressed ? 28 : 24}" r="12" fill="#2563eb"></circle>
+            <line x1="-8" y1="14" x2="4" y2="14" stroke="#6b7280" stroke-width="2"></line>
+            <line x1="-8" y1="38" x2="4" y2="38" stroke="#6b7280" stroke-width="2"></line>
+            <line x1="48" y1="14" x2="60" y2="14" stroke="#6b7280" stroke-width="2"></line>
+            <line x1="48" y1="38" x2="60" y2="38" stroke="#6b7280" stroke-width="2"></line>
+          `;
+        }
+      };
+    }
+
+    function makeLed(color) {
+      const fill = {
+        red: "#ef4444",
+        green: "#22c55e",
+        blue: "#3b82f6"
+      }[color];
+
+      const stroke = {
+        red: "#b91c1c",
+        green: "#15803d",
+        blue: "#1d4ed8"
+      }[color];
+
+      return {
+        label: `LED ${color[0].toUpperCase() + color.slice(1)}`,
+        width: 38,
+        height: 34,
+        pins: [
+          { name: "anode", dx: 8, dy: 34, nodeId: null },
+          { name: "cathode", dx: 26, dy: 34, nodeId: null }
+        ],
+        render(comp) {
+          const onClass = comp.simState.lit ? `led-on-${color}` : "";
+          return `
+            <ellipse cx="17" cy="14" rx="12" ry="13" fill="${fill}" stroke="${stroke}" stroke-width="1.4" class="${onClass}"></ellipse>
+            <line x1="8" y1="24" x2="8" y2="34" stroke="#666" stroke-width="2"></line>
+            <line x1="26" y1="24" x2="26" y2="34" stroke="#666" stroke-width="2"></line>
+          `;
+        }
+      };
+    }
+
+    const CATALOG = {
+      battery: makeBattery(),
+      button: makeButton(),
+      led_red: makeLed("red"),
+      led_green: makeLed("green"),
+      led_blue: makeLed("blue")
+    };
+
+    function createComponent(type, x, y) {
+      const def = CATALOG[type];
+      return {
+        id: newId(),
+        type,
+        x,
+        y,
+        pins: def.pins.map(p => ({ ...p })),
+        simState: {}
+      };
+    }
+
+    function getPinWorld(comp, pin) {
+      return {
+        x: comp.x + pin.dx,
+        y: comp.y + pin.dy
+      };
+    }
+
+    function snapComponent(comp) {
+      for (const pin of comp.pins) {
+        const p = getPinWorld(comp, pin);
+        const hole = nearestHole(p.x, p.y);
+        pin.nodeId = hole ? hole.nodeId : null;
+      }
+    }
+
+    function alignComponent(comp) {
+      let best = null;
+      for (const pin of comp.pins) {
+        const p = getPinWorld(comp, pin);
+        const hole = nearestHole(p.x, p.y);
+        if (!hole) continue;
+        const d = Math.hypot(p.x - hole.x, p.y - hole.y);
+        if (!best || d < best.d) {
+          best = { pin, hole, d };
+        }
+      }
+      if (!best) return;
+      comp.x = best.hole.x - best.pin.dx;
+      comp.y = best.hole.y - best.pin.dy;
+      snapComponent(comp);
+    }
+
+    function renderBoard() {
+      const layer = document.getElementById("board-layer");
+      layer.innerHTML = "";
+
+      const sizePx = (state.boardSize - 1) * HOLE_SPACING;
+      const bx = state.offsetX - BOARD_PADDING / 2;
+      const by = state.offsetY - BOARD_PADDING / 2;
+      const bw = sizePx + BOARD_PADDING;
+      const bh = sizePx + BOARD_PADDING;
+
+      layer.appendChild(svgEl("rect", {
+        x: bx,
+        y: by,
+        width: bw,
+        height: bh,
+        rx: 18,
+        fill: "#d9c48f",
+        stroke: "#b89b5a",
+        "stroke-width": 2
+      }));
+
+      layer.appendChild(svgEl("rect", {
+        x: bx + 14,
+        y: by + 14,
+        width: bw - 28,
+        height: bh - 28,
+        rx: 12,
+        fill: "#e8d7aa"
+      }));
+
+      for (let i = 0; i < state.boardSize; i++) {
+        const top = svgEl("text", {
+          x: state.offsetX + i * HOLE_SPACING,
+          y: state.offsetY - 24,
+          "text-anchor": "middle",
+          "font-size": 11,
+          "font-weight": 700,
+          fill: "#7a6a45"
+        });
+        top.textContent = i + 1;
+        layer.appendChild(top);
+
+        const left = svgEl("text", {
+          x: state.offsetX - 24,
+          y: state.offsetY + i * HOLE_SPACING + 4,
+          "text-anchor": "middle",
+          "font-size": 11,
+          "font-weight": 700,
+          fill: "#7a6a45"
+        });
+        left.textContent = i + 1;
+        layer.appendChild(left);
+      }
+
+      for (let r = 0; r < state.boardSize; r++) {
+        for (let c = 0; c < state.boardSize; c++) {
+          const p = boardHolePos(r, c);
+
+          layer.appendChild(svgEl("circle", {
+            cx: p.x,
+            cy: p.y,
+            r: HOLE_RADIUS + 2,
+            fill: "#b79a64"
+          }));
+
+          layer.appendChild(svgEl("circle", {
+            cx: p.x,
+            cy: p.y,
+            r: HOLE_RADIUS,
+            fill: "#52525b",
+            class: "board-hole",
+            "data-row": r,
+            "data-col": c,
+            "data-node": nodeId(r, c)
+          }));
+        }
+      }
+    }
+
+    function renderComponents() {
+      const layer = document.getElementById("component-layer");
+      layer.innerHTML = "";
+
+      for (const comp of state.components) {
+        const def = CATALOG[comp.type];
+        const selected = state.selected?.type === "component" && state.selected.id === comp.id;
+
+        const g = svgEl("g", {
+          class: `comp-group ${selected ? "selected" : ""}`,
+          "data-comp-id": comp.id,
+          transform: `translate(${comp.x}, ${comp.y})`
+        });
+
+        const inner = svgEl("g");
+        inner.innerHTML = def.render(comp);
+        g.appendChild(inner);
+
+        g.appendChild(svgEl("rect", {
+          x: -8,
+          y: -8,
+          width: def.width + 16,
+          height: def.height + 16,
+          rx: 10,
+          fill: "transparent",
+          stroke: "transparent",
+          class: "comp-box",
+          "data-comp-id": comp.id
+        }));
+
+        for (const pin of comp.pins) {
+          const connected = !!pin.nodeId && state.wires.some(w => w.a === pin.nodeId || w.b === pin.nodeId);
+          g.appendChild(svgEl("circle", {
+            cx: pin.dx,
+            cy: pin.dy,
+            r: 5,
+            class: `comp-pin ${connected ? "connected" : ""}`,
+            "data-comp-id": comp.id,
+            "data-pin-name": pin.name
+          }));
+        }
+
+        layer.appendChild(g);
+      }
+    }
+
+    function wirePath(a, b) {
+      const mx = (a.x + b.x) / 2;
+      return `M ${a.x},${a.y} L ${mx},${a.y} L ${mx},${b.y} L ${b.x},${b.y}`;
+    }
+
+    function nodePosition(node) {
+      const m = node.match(/^h:(\d+):(\d+)$/);
+      if (!m) return null;
+      return boardHolePos(Number(m[1]), Number(m[2]));
+    }
+
+    function renderWires() {
+      const layer = document.getElementById("wire-layer");
+      layer.innerHTML = "";
+
+      for (const wire of state.wires) {
+        const a = nodePosition(wire.a);
+        const b = nodePosition(wire.b);
+        if (!a || !b) continue;
+
+        const pathD = wirePath(a, b);
+
+        layer.appendChild(svgEl("path", {
+          d: pathD,
+          stroke: wire.color,
+          class: "wire-path",
+          "data-wire-id": wire.id
+        }));
+
+        layer.appendChild(svgEl("path", {
+          d: pathD,
+          class: "wire-hit",
+          "data-wire-id": wire.id
+        }));
+      }
+    }
+
+    function renderWirePreview(x, y) {
+      const layer = document.getElementById("preview-layer");
+      layer.innerHTML = "";
+
+      if (!state.wireStart) return;
+
+      const startPos = nodePosition(state.wireStart.nodeId);
+      if (!startPos) return;
+
+      const path = `M ${startPos.x},${startPos.y} L ${(startPos.x + x) / 2},${startPos.y} L ${(startPos.x + x) / 2},${y} L ${x},${y}`;
+
+      layer.appendChild(svgEl("path", {
+        d: path,
+        class: "wire-preview"
+      }));
+    }
+
+    function render() {
+      renderBoard();
+      renderWires();
+      renderComponents();
+    }
+
+    function getPinOrHole(target) {
+      if (target.classList.contains("board-hole")) {
+        return {
+          nodeId: target.dataset.node
+        };
+      }
+
+      if (target.dataset.pinName) {
+        const comp = state.components.find(c => c.id === target.dataset.compId);
+        if (!comp) return null;
+        const pin = comp.pins.find(p => p.name === target.dataset.pinName);
+        if (!pin || !pin.nodeId) return null;
+        return {
+          nodeId: pin.nodeId
+        };
+      }
+
+      return null;
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      state.wireStart = null;
+      document.getElementById("preview-layer").innerHTML = "";
+
+      document.querySelectorAll(".tool-btn").forEach(btn => btn.classList.remove("active"));
+      document.getElementById(`tool-${mode}`).classList.add("active");
+
+      const svg = document.getElementById("main-svg");
+      svg.classList.remove("mode-wire", "mode-delete");
+      if (mode === "wire") svg.classList.add("mode-wire");
+      if (mode === "delete") svg.classList.add("mode-delete");
+
+      setStatus(mode === "select"
+        ? "Select mode — move parts"
+        : mode === "wire"
+        ? "Wire mode — click first point, then second point"
+        : "Delete mode — click a part or wire");
+    }
+
+    function addWire(nodeA, nodeB) {
+      if (!nodeA || !nodeB || nodeA === nodeB) return;
+      const exists = state.wires.some(w =>
+        (w.a === nodeA && w.b === nodeB) || (w.a === nodeB && w.b === nodeA)
+      );
+      if (exists) {
+        showToast("Wire already exists");
+        return;
+      }
+      state.wires.push({
+        id: newId(),
+        a: nodeA,
+        b: nodeB,
+        color: "#ef4444"
+      });
+    }
+
+    function adjacency() {
+      const map = {};
+      function link(a, b) {
+        if (!a || !b) return;
+        if (!map[a]) map[a] = new Set();
+        if (!map[b]) map[b] = new Set();
+        map[a].add(b);
+        map[b].add(a);
+      }
+
+      for (const w of state.wires) {
+        link(w.a, w.b);
+      }
+
+      for (const comp of state.components) {
+        if (comp.type === "button" && comp.simState.pressed) {
+          const lt = comp.pins.find(p => p.name === "leftTop")?.nodeId;
+          const rt = comp.pins.find(p => p.name === "rightTop")?.nodeId;
+          const lb = comp.pins.find(p => p.name === "leftBottom")?.nodeId;
+          const rb = comp.pins.find(p => p.name === "rightBottom")?.nodeId;
+          link(lt, rt);
+          link(lb, rb);
+        }
+      }
+
+      return map;
+    }
+
+    function bfs(start, map) {
+      const out = new Set();
+      if (!start) return out;
+      const q = [start];
+      out.add(start);
+
+      while (q.length) {
+        const cur = q.shift();
+        for (const next of map[cur] || []) {
+          if (out.has(next)) continue;
+          out.add(next);
+          q.push(next);
+        }
+      }
+      return out;
+    }
+
+    function runSimulation() {
+      for (const comp of state.components) {
+        comp.simState.lit = false;
+      }
+
+      const battery = state.components.find(c => c.type === "battery");
+      if (!battery) {
+        render();
+        return;
+      }
+
+      const pos = battery.pins.find(p => p.name === "positive")?.nodeId;
+      const neg = battery.pins.find(p => p.name === "negative")?.nodeId;
+      const graph = adjacency();
+
+      const fromPos = bfs(pos, graph);
+      const fromNeg = bfs(neg, graph);
+
+      for (const comp of state.components) {
+        if (!comp.type.startsWith("led_")) continue;
+        const anode = comp.pins.find(p => p.name === "anode")?.nodeId;
+        const cathode = comp.pins.find(p => p.name === "cathode")?.nodeId;
+        if (anode && cathode && fromPos.has(anode) && fromNeg.has(cathode)) {
+          comp.simState.lit = true;
+        }
+      }
+
+      render();
+    }
+
+    function stopSimulation() {
+      for (const comp of state.components) {
+        comp.simState.lit = false;
+      }
+      render();
+    }
+
+    function clearBoard() {
+      state.components = [];
+      state.wires = [];
+      state.selected = null;
+      state.wireStart = null;
+      state.simRunning = false;
+      stopSimulation();
+      document.getElementById("btn-run").style.display = "";
+      document.getElementById("btn-stop").style.display = "none";
+      render();
+      setStatus("Board cleared");
+      showToast("Board cleared");
+    }
+
+    function applyBoardSize() {
+      const input = document.getElementById("board-size");
+      let n = Number(input.value);
+      if (!Number.isFinite(n)) n = 12;
+      n = Math.max(4, Math.min(30, n));
+      input.value = n;
+
+      state.boardSize = n;
+      state.components = [];
+      state.wires = [];
+      state.selected = null;
+      state.wireStart = null;
+      state.simRunning = false;
+
+      document.getElementById("btn-run").style.display = "";
+      document.getElementById("btn-stop").style.display = "none";
+
+      render();
+      setStatus(`Board changed to ${n} × ${n}`);
+      showToast(`Board size: ${n} × ${n}`);
+    }
+
+    function initDragDrop() {
+      const svg = document.getElementById("main-svg");
+      let draggedType = null;
+
+      document.querySelectorAll(".palette-item").forEach(item => {
+        item.addEventListener("dragstart", e => {
+          draggedType = item.dataset.type;
+          e.dataTransfer.setData("text/plain", draggedType);
+        });
+      });
+
+      svg.addEventListener("dragover", e => {
+        e.preventDefault();
+      });
+
+      svg.addEventListener("drop", e => {
+        e.preventDefault();
+        const type = e.dataTransfer.getData("text/plain") || draggedType;
+        if (!type) return;
+
+        const p = svgPoint(e);
+        const def = CATALOG[type];
+        const comp = createComponent(type, p.x - def.width / 2, p.y - def.height / 2);
+        alignComponent(comp);
+        snapComponent(comp);
+        state.components.push(comp);
+        render();
+        setStatus(`${def.label} placed`);
+      });
+    }
+
+    function initMouse() {
+      const svg = document.getElementById("main-svg");
+
+      svg.addEventListener("mousedown", e => {
+        const target = e.target;
+
+        if (state.mode === "wire") {
+          const info = getPinOrHole(target);
+          if (!info) return;
+
+          if (!state.wireStart) {
+            state.wireStart = info;
+            setStatus("Select the second point");
+            return;
+          }
+
+          addWire(state.wireStart.nodeId, info.nodeId);
+          state.wireStart = null;
+          document.getElementById("preview-layer").innerHTML = "";
+          if (state.simRunning) runSimulation();
+          render();
+          showToast("Wire added");
+          return;
+        }
+
+        if (state.mode === "delete") {
+          const compId = target.closest("[data-comp-id]")?.dataset.compId;
+          if (compId) {
+            state.components = state.components.filter(c => c.id !== compId);
+            state.wires = state.wires.filter(w => {
+              const comp = state.components.find(c => c.id === compId);
+              return !comp;
+            });
+            state.wires = state.wires.filter(w => {
+              const removedCompPins = [];
+              return !removedCompPins.includes(w.a) && !removedCompPins.includes(w.b);
+            });
+
+            const deletedComp = CATALOG;
+            const oldComp = state.components.find(c => c.id === compId);
+
+            state.wires = state.wires.filter(w => {
+              const removed = oldComp?.pins?.map(p => p.nodeId).filter(Boolean) || [];
+              return !removed.includes(w.a) && !removed.includes(w.b);
+            });
+
+            if (state.simRunning) runSimulation();
+            render();
+            return;
+          }
+
+          const wireId = target.dataset.wireId || target.closest("[data-wire-id]")?.dataset.wireId;
+          if (wireId) {
+            state.wires = state.wires.filter(w => w.id !== wireId);
+            if (state.simRunning) runSimulation();
+            render();
+            return;
+          }
+
+          return;
+        }
+
+        const compId = target.closest("[data-comp-id]")?.dataset.compId;
+        if (compId) {
+          const comp = state.components.find(c => c.id === compId);
+          state.selected = { type: "component", id: compId };
+
+          if (comp.type === "button") {
+            comp.simState.pressed = !comp.simState.pressed;
+            if (state.simRunning) runSimulation();
+          }
+
+          const p = svgPoint(e);
+          state.dragging = {
+            compId,
+            offsetX: p.x - comp.x,
+            offsetY: p.y - comp.y
+          };
+          render();
+          return;
+        }
+
+        const wireId = target.dataset.wireId || target.closest("[data-wire-id]")?.dataset.wireId;
+        if (wireId) {
+          state.selected = { type: "wire", id: wireId };
+          render();
+          return;
+        }
+
+        state.selected = null;
+        render();
+      });
+
+      svg.addEventListener("mousemove", e => {
+        const p = svgPoint(e);
+
+        if (state.wireStart) {
+          renderWirePreview(p.x, p.y);
+        }
+
+        if (!state.dragging) return;
+        const comp = state.components.find(c => c.id === state.dragging.compId);
+        if (!comp) return;
+        comp.x = p.x - state.dragging.offsetX;
+        comp.y = p.y - state.dragging.offsetY;
+        snapComponent(comp);
+        render();
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (!state.dragging) return;
+        const comp = state.components.find(c => c.id === state.dragging.compId);
+        if (comp) {
+          alignComponent(comp);
+          snapComponent(comp);
+          if (state.simRunning) runSimulation();
+        }
+        state.dragging = null;
+        render();
+      });
+    }
+
+    function fixDeleteLogic() {
+      const svg = document.getElementById("main-svg");
+      svg.addEventListener("mousedown", function(){}, { once: true });
+    }
+
+    function initButtons() {
+      document.getElementById("tool-select").addEventListener("click", () => setMode("select"));
+      document.getElementById("tool-wire").addEventListener("click", () => setMode("wire"));
+      document.getElementById("tool-delete").addEventListener("click", () => setMode("delete"));
+
+      document.getElementById("btn-run").addEventListener("click", () => {
+        state.simRunning = true;
+        runSimulation();
+        document.getElementById("btn-run").style.display = "none";
+        document.getElementById("btn-stop").style.display = "";
+        setStatus("Simulation running");
+        showToast("Simulation started");
+      });
+
+      document.getElementById("btn-stop").addEventListener("click", () => {
+        state.simRunning = false;
+        stopSimulation();
+        document.getElementById("btn-run").style.display = "";
+        document.getElementById("btn-stop").style.display = "none";
+        setStatus("Simulation stopped");
+        showToast("Simulation stopped");
+      });
+
+      document.getElementById("btn-clear").addEventListener("click", clearBoard);
+      document.getElementById("btn-apply-size").addEventListener("click", applyBoardSize);
+
+      document.getElementById("board-size").addEventListener("keydown", e => {
+        if (e.key === "Enter") applyBoardSize();
+      });
+    }
+
+    function removeComponentAndItsWires(compId) {
+      const comp = state.components.find(c => c.id === compId);
+      if (!comp) return;
+
+      const nodes = comp.pins.map(p => p.nodeId).filter(Boolean);
+      state.components = state.components.filter(c => c.id !== compId);
+      state.wires = state.wires.filter(w => !nodes.includes(w.a) && !nodes.includes(w.b));
+    }
+
+    function initDeletePatch() {
+      const svg = document.getElementById("main-svg");
+
+      svg.addEventListener("click", e => {
+        if (state.mode !== "delete") return;
+
+        const compId = e.target.closest("[data-comp-id]")?.dataset.compId;
+        if (compId) {
+          removeComponentAndItsWires(compId);
+          if (state.simRunning) runSimulation();
+          render();
+          showToast("Component removed");
+          return;
+        }
+
+        const wireId = e.target.dataset.wireId || e.target.closest("[data-wire-id]")?.dataset.wireId;
+        if (wireId) {
+          state.wires = state.wires.filter(w => w.id !== wireId);
+          if (state.simRunning) runSimulation();
+          render();
+          showToast("Wire removed");
+        }
+      }, true);
+    }
+
+    function init() {
+      render();
+      initDragDrop();
+      initMouse();
+      initButtons();
+      initDeletePatch();
+      fixDeleteLogic();
+      setMode("select");
+      setStatus("Ready — drag a component to the board");
+    }
+
+    window.addEventListener("load", init);
+  </script>
+</body>
+</html>

@@ -239,7 +239,7 @@ def detect_dotted_lines_hv_merged(image_path, debug=False):
 
 
 if __name__ == "__main__":
-    input_path = "image.png"
+    input_path = "hungry.jpg"
     output_path = "output_merged.png"
 
     result_img, h_lines, v_lines = detect_dotted_lines_hv_merged(input_path, debug=False)
