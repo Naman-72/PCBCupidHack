@@ -18,6 +18,16 @@
 # result = CLIENT.infer("yolo_test.jpg", model_id="component-detection-e5wj9/7")
 
 
-from sahi import AutoDetectionModel
-from sahi.predict import get_sliced_prediction
-from sahi.utils.cv import read_image_as_pil
+# from sahi import AutoDetectionModel
+# from sahi.predict import get_sliced_prediction
+# from sahi.utils.cv import read_image_as_pil
+# detection_model = AutoDetectionModel.from_pretrained(
+#     model_type='mmdet',
+#     model_path=mmdet_cascade_mask_rcnn_model_path,
+#     config_path=mmdet_cascade_mask_rcnn_config_path,
+#     confidence_threshold=0.4,
+#     device="cuda:0"
+# )
+
+# image = read_image_as_pil(image_dir)
+
