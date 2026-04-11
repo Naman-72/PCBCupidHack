@@ -1,0 +1,1928 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Perfboard Simulator Pro</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+
+  :root{
+    --bg: #eef2f7;
+    --panel: rgba(255,255,255,0.92);
+    --panel-2: #ffffff;
+    --panel-3: #f6f8fb;
+    --text: #122033;
+    --muted: #617086;
+    --soft: #8c98aa;
+    --line: rgba(18,32,51,0.12);
+    --line-2: rgba(18,32,51,0.2);
+    --accent: #2563eb;
+    --accent-2: #1d4ed8;
+    --accent-soft: #e8f0ff;
+    --success: #15803d;
+    --success-soft: #e8f7ed;
+    --danger: #b42318;
+    --danger-soft: #fff0ef;
+    --warn: #b45309;
+    --warn-soft: #fff5e8;
+    --shadow: 0 10px 30px rgba(18,32,51,0.08);
+    --shadow-2: 0 20px 50px rgba(18,32,51,0.14);
+
+    --wood-a: #d1ae6d;
+    --wood-b: #bb9753;
+    --wood-c: #a77e34;
+
+    --hole: #1f2937;
+    --hole-ring: #111827;
+    --snap: #0f9d75;
+    --snap-2: rgba(15,157,117,0.18);
+
+    --cell: 56px;
+    --radius: 14px;
+    --radius-sm: 10px;
+    --radius-xs: 8px;
+  }
+
+  body{
+    margin:0;
+    font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(circle at top left, #ffffff 0%, #eef2f7 35%, #e6ecf5 100%);
+    min-height: 100vh;
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+
+  header{
+    height:72px;
+    padding: 0 20px;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    border-bottom:1px solid var(--line);
+    background: rgba(255,255,255,0.75);
+    backdrop-filter: blur(12px);
+    flex-shrink:0;
+    z-index:10;
+  }
+
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+
+  .brand-badge{
+    width:42px;
+    height:42px;
+    border-radius:12px;
+    display:grid;
+    place-items:center;
+    background: linear-gradient(135deg, #1d4ed8, #60a5fa);
+    color:#fff;
+    box-shadow: 0 10px 24px rgba(37,99,235,0.28);
+    font-size:20px;
+  }
+
+  .brand h1{
+    margin:0;
+    font-size:18px;
+    font-weight:700;
+    letter-spacing:-0.02em;
+  }
+
+  .brand p{
+    margin:2px 0 0;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .top-controls{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  .glass{
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius: 999px;
+    padding:8px 12px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    box-shadow: var(--shadow);
+  }
+
+  .glass label{
+    font-size:12px;
+    color:var(--muted);
+    white-space:nowrap;
+  }
+
+  input[type="range"]{
+    accent-color: var(--accent);
+    width:110px;
+  }
+
+  .btn{
+    border:none;
+    outline:none;
+    cursor:pointer;
+    border-radius:12px;
+    padding:10px 14px;
+    font-size:13px;
+    font-weight:600;
+    transition: .18s ease;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  .btn:hover{ transform: translateY(-1px); }
+  .btn:active{ transform: translateY(0); }
+
+  .btn-primary{
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color:#fff;
+    box-shadow: 0 10px 22px rgba(37,99,235,0.22);
+  }
+
+  .btn-soft{
+    background: #fff;
+    color: var(--text);
+    border:1px solid var(--line);
+    box-shadow: var(--shadow);
+  }
+
+  .btn-danger{
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color:#fff;
+    box-shadow: 0 10px 22px rgba(220,38,38,0.18);
+  }
+
+  .layout{
+    flex:1;
+    min-height:0;
+    display:grid;
+    grid-template-columns: 280px 1fr 320px;
+    gap:16px;
+    padding:16px;
+    overflow:hidden;
+  }
+
+  .panel{
+    min-height:0;
+    background: var(--panel);
+    border:1px solid var(--line);
+    border-radius: 22px;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+    display:flex;
+    flex-direction:column;
+    backdrop-filter: blur(10px);
+  }
+
+  .panel-head{
+    padding:16px 16px 10px;
+    border-bottom:1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.65));
+  }
+
+  .panel-head h2{
+    margin:0;
+    font-size:14px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+
+  .panel-head p{
+    margin:4px 0 0;
+    font-size:12px;
+    color:var(--muted);
+    line-height:1.45;
+  }
+
+  .panel-body{
+    padding:14px;
+    overflow:auto;
+    min-height:0;
+  }
+
+  .section-title{
+    font-size:11px;
+    font-weight:700;
+    color:var(--soft);
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    margin:2px 0 10px;
+  }
+
+  .palette-group{
+    margin-bottom:14px;
+  }
+
+  .comp-card{
+    display:flex;
+    gap:12px;
+    align-items:center;
+    padding:12px;
+    border:1px solid var(--line);
+    border-radius:16px;
+    background: linear-gradient(180deg, #ffffff, #f8fbff);
+    margin-bottom:10px;
+    cursor:grab;
+    user-select:none;
+    transition:.16s ease;
+    box-shadow: 0 6px 16px rgba(18,32,51,0.04);
+  }
+
+  .comp-card:hover{
+    border-color: rgba(37,99,235,0.35);
+    background: linear-gradient(180deg, #ffffff, #eef5ff);
+    transform: translateY(-1px);
+  }
+
+  .comp-card:active{ cursor:grabbing; }
+
+  .comp-icon{
+    width:52px;
+    height:34px;
+    display:grid;
+    place-items:center;
+    flex-shrink:0;
+    border-radius:12px;
+    background:#fff;
+    border:1px solid var(--line);
+  }
+
+  .comp-name{
+    font-size:13px;
+    font-weight:700;
+  }
+
+  .comp-meta{
+    font-size:11px;
+    color:var(--muted);
+    margin-top:3px;
+    line-height:1.35;
+  }
+
+  .chip-row{
+    margin-top:7px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+  }
+
+  .chip{
+    font-size:10px;
+    padding:3px 7px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    color:var(--muted);
+    font-weight:700;
+  }
+
+  .chip.polar{
+    background: var(--warn-soft);
+    color:var(--warn);
+    border-color: rgba(180,83,9,0.18);
+  }
+
+  .workspace{
+    min-height:0;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+
+  .board-toolbar{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    padding:14px 18px;
+    border-bottom:1px solid var(--line);
+    background: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.7));
+  }
+
+  .toolbar-left, .toolbar-right{
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  .stat-pill{
+    padding:8px 12px;
+    border-radius:999px;
+    border:1px solid var(--line);
+    background:#fff;
+    font-size:12px;
+    color:var(--muted);
+    box-shadow: var(--shadow);
+  }
+
+  .board-wrap{
+    flex:1;
+    min-height:0;
+    padding:18px;
+    overflow:auto;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:
+      radial-gradient(circle at 20% 20%, rgba(255,255,255,0.85), rgba(255,255,255,0.55) 35%, rgba(238,242,247,0.95) 100%);
+  }
+
+  #board-shell{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+    align-items:center;
+  }
+
+  #board{
+    position:relative;
+    border-radius:26px;
+    border:2px solid #8b6930;
+    background:
+      linear-gradient(180deg, var(--wood-a), var(--wood-b));
+    box-shadow:
+      inset 0 0 0 7px rgba(255,255,255,0.12),
+      inset 0 0 0 12px rgba(121,82,18,0.1),
+      0 24px 50px rgba(82,58,19,0.2);
+  }
+
+  .hole-grid{
+    display:grid;
+    position:relative;
+  }
+
+  .hole{
+    width:var(--cell);
+    height:var(--cell);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    position:relative;
+    cursor:pointer;
+  }
+
+  .hole::before{
+    content:"";
+    position:absolute;
+    width:18px;
+    height:18px;
+    border-radius:50%;
+    background: rgba(77,53,17,0.16);
+    filter: blur(3px);
+    transform: translateY(2px);
+  }
+
+  .hole-dot{
+    position:relative;
+    z-index:1;
+    width:10px;
+    height:10px;
+    border-radius:50%;
+    background: var(--hole);
+    border:1px solid var(--hole-ring);
+    box-shadow:
+      inset 0 2px 2px rgba(255,255,255,0.08),
+      0 1px 0 rgba(255,255,255,0.06);
+    transition:.12s ease;
+  }
+
+  .hole-label{
+    position:absolute;
+    bottom:5px;
+    font-size:8px;
+    color: rgba(73,44,0,0.78);
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    letter-spacing:0.02em;
+  }
+
+  .hole.snap-target .hole-dot,
+  .hole.pin-snap-target .hole-dot{
+    background: var(--snap);
+    transform: scale(1.65);
+    box-shadow: 0 0 0 8px var(--snap-2);
+  }
+
+  .hole.occupied .hole-dot{
+    background:#1e40af;
+  }
+
+  .hole.power-plus .hole-dot{
+    background:#dc2626;
+    box-shadow: 0 0 0 6px rgba(220,38,38,0.12);
+  }
+
+  .hole.power-minus .hole-dot{
+    background:#111827;
+    box-shadow: 0 0 0 6px rgba(17,24,39,0.12);
+  }
+
+  .component-layer{
+    position:absolute;
+    inset:0;
+    z-index:3;
+    pointer-events:none;
+  }
+
+  .component-layer svg{ overflow:visible; }
+  .comp-el{ pointer-events:all; cursor:pointer; }
+
+  .comp-label-tag{
+    font-size:9px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    fill:#fff;
+    paint-order:stroke;
+    stroke:rgba(0,0,0,0.2);
+    stroke-width:2px;
+  }
+
+  .sel-ring{
+    stroke:var(--accent);
+    stroke-width:2;
+    stroke-dasharray:5 3;
+    fill:none;
+  }
+
+  .pin-handle{
+    cursor:grab;
+    transition:.12s ease;
+  }
+
+  .pin-handle:hover{
+    transform-origin:center;
+  }
+
+  .pin-preview{
+    fill:none;
+    stroke:#f59e0b;
+    stroke-width:2.5;
+    stroke-dasharray:5 4;
+    opacity:0.9;
+  }
+
+  .hint-bar{
+    padding:10px 14px;
+    border:1px solid var(--line);
+    background: rgba(255,255,255,0.8);
+    border-radius:16px;
+    box-shadow: var(--shadow);
+    display:flex;
+    gap:14px;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:center;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .hint-bar span{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+  }
+
+  .delete-badge{
+    display:none;
+    position:fixed;
+    z-index:50;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color:#fff;
+    border:none;
+    padding:8px 11px;
+    border-radius:12px;
+    font-size:12px;
+    font-weight:700;
+    cursor:pointer;
+    box-shadow: 0 18px 36px rgba(220,38,38,0.28);
+  }
+
+  .delete-badge.visible{ display:block; }
+
+  .info-card{
+    border:1px solid var(--line);
+    border-radius:16px;
+    background: linear-gradient(180deg, #ffffff, #fafcff);
+    padding:12px;
+    margin-bottom:12px;
+  }
+
+  .info-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:8px;
+  }
+
+  .info-head strong{
+    font-size:13px;
+  }
+
+  .badge{
+    font-size:10px;
+    font-weight:800;
+    padding:4px 8px;
+    border-radius:999px;
+  }
+
+  .badge.ok{
+    background: var(--success-soft);
+    color: var(--success);
+  }
+
+  .badge.bad{
+    background: var(--danger-soft);
+    color: var(--danger);
+  }
+
+  .badge.warn{
+    background: var(--warn-soft);
+    color: var(--warn);
+  }
+
+  .demo-btn, .side-btn{
+    width:100%;
+    text-align:left;
+    padding:11px 12px;
+    border-radius:14px;
+    border:1px solid var(--line);
+    background: linear-gradient(180deg, #ffffff, #f8fbff);
+    font-size:12px;
+    font-weight:700;
+    color:var(--text);
+    cursor:pointer;
+    transition:.16s ease;
+    margin-bottom:8px;
+  }
+
+  .demo-btn:hover, .side-btn:hover{
+    border-color: rgba(37,99,235,0.35);
+    background: linear-gradient(180deg, #ffffff, #eef5ff);
+  }
+
+  .demo-sub{
+    margin-top:4px;
+    color:var(--muted);
+    font-size:11px;
+    font-weight:500;
+    line-height:1.4;
+  }
+
+  .output, .state-box{
+    border:1px solid var(--line);
+    border-radius:16px;
+    background: linear-gradient(180deg, #f9fbff, #f4f7fb);
+    padding:12px;
+    font-size:11px;
+    color:var(--muted);
+    line-height:1.55;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+
+  .state-box{
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    max-height:240px;
+    overflow:auto;
+  }
+
+  .mini-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+
+  .legend{
+    display:grid;
+    gap:8px;
+  }
+
+  .legend-item{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-size:12px;
+    color:var(--muted);
+  }
+
+  .legend-dot{
+    width:12px;
+    height:12px;
+    border-radius:50%;
+  }
+
+  .api-input{
+    width:100%;
+    padding:11px 12px;
+    border-radius:14px;
+    border:1px solid var(--line);
+    background:#fff;
+    outline:none;
+    font-size:12px;
+    margin-bottom:8px;
+  }
+
+  .api-input:focus{
+    border-color: rgba(37,99,235,0.45);
+    box-shadow: 0 0 0 4px rgba(37,99,235,0.08);
+  }
+
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background: rgba(18,32,51,0.18); border-radius:999px; }
+  ::-webkit-scrollbar-track{ background: transparent; }
+
+  @media (max-width: 1280px){
+    .layout{
+      grid-template-columns:260px 1fr 300px;
+    }
+  }
+
+  @media (max-width: 1100px){
+    .layout{
+      grid-template-columns: 1fr;
+      overflow:auto;
+    }
+    .panel{
+      min-height:320px;
+    }
+    .workspace{ order:-1; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="brand-badge">⚡</div>
+    <div>
+      <h1>Perfboard Simulator Pro</h1>
+      <p>Drag parts, wire a real closed loop, and test polarized LED-style bulbs.</p>
+    </div>
+  </div>
+
+  <div class="top-controls">
+    <div class="glass">
+      <label for="grid-size">Grid</label>
+      <input type="range" id="grid-size" min="6" max="16" value="8" />
+      <strong id="grid-size-label" style="font-size:12px;">8 × 8</strong>
+    </div>
+    <button class="btn btn-soft" onclick="fitBoard()">Center board</button>
+    <button class="btn btn-danger" onclick="clearBoard()">Clear board</button>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Component Palette</h2>
+      <p>Every part is draggable. Bulb is now polarized like an LED: pin A = positive, pin B = negative.</p>
+    </div>
+    <div class="panel-body" id="palette"></div>
+  </aside>
+
+  <main class="panel workspace">
+    <div class="board-toolbar">
+      <div class="toolbar-left">
+        <div class="stat-pill" id="stat-components">0 components</div>
+        <div class="stat-pill" id="stat-bulbs">0 bulbs on</div>
+        <div class="stat-pill" id="stat-circuit">No complete power loop</div>
+      </div>
+      <div class="toolbar-right">
+        <button class="btn btn-soft" onclick="loadDemo('led-series')">LED + resistor</button>
+        <button class="btn btn-soft" onclick="loadDemo('dual-led')">Parallel LEDs</button>
+        <button class="btn btn-soft" onclick="loadDemo('lamp-loop')">Direct lamp loop</button>
+      </div>
+    </div>
+
+    <div class="board-wrap" id="board-area">
+      <div id="board-shell">
+        <div id="board">
+          <div class="hole-grid" id="hole-grid"></div>
+          <div class="component-layer">
+            <svg id="comp-svg" width="0" height="0"></svg>
+          </div>
+        </div>
+
+        <div class="hint-bar">
+          <span>🧲 Drag to the board and snap to nearest holes</span>
+          <span>🔵 Click a component, then drag blue pin handles</span>
+          <span>💡 LED bulb glows only with correct polarity and a closed circuit</span>
+          <span>🗑 Click selected part to delete</span>
+        </div>
+      </div>
+    </div>
+    <button id="delete-badge" class="delete-badge">Delete component</button>
+  </main>
+
+  <aside class="panel">
+    <div class="panel-head">
+      <h2>Inspector & Analysis</h2>
+      <p>Check if your circuit actually conducts, inspect JSON state, or ask AI for a quick review.</p>
+    </div>
+    <div class="panel-body">
+      <div class="info-card">
+        <div class="info-head">
+          <strong>Circuit health</strong>
+          <span class="badge warn" id="health-badge">Waiting</span>
+        </div>
+        <div class="output" id="health-output">Place a battery and connect a polarized bulb in a closed loop.</div>
+      </div>
+
+      <div class="info-card">
+        <div class="section-title">Demo Circuits</div>
+        <button class="demo-btn" onclick="loadDemo('led-series')">
+          Working LED + resistor
+          <div class="demo-sub">Battery → resistor → polarized bulb → return wire</div>
+        </button>
+        <button class="demo-btn" onclick="loadDemo('dual-led')">
+          Two working LEDs in parallel
+          <div class="demo-sub">Battery powers two separate polarized bulb branches</div>
+        </button>
+        <button class="demo-btn" onclick="loadDemo('lamp-loop')">
+          Direct battery + lamp loop
+          <div class="demo-sub">Simplest closed loop with correct bulb polarity</div>
+        </button>
+      </div>
+
+      <div class="info-card">
+        <div class="section-title">Legend</div>
+        <div class="legend">
+          <div class="legend-item"><span class="legend-dot" style="background:#dc2626;"></span> Battery positive node</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#111827;"></span> Battery negative node</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#0f9d75;"></span> Snap target</div>
+          <div class="legend-item"><span class="legend-dot" style="background:#f59e0b;"></span> Selected pin drag preview</div>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <div class="section-title">Quick Actions</div>
+        <div class="mini-grid">
+          <button class="side-btn" onclick="clearBoard()">Clear</button>
+          <button class="side-btn" onclick="analyzeCurrentCircuit()">Run local analysis</button>
+        </div>
+      </div>
+
+      <div class="info-card">
+        <div class="section-title">AI Analyzer</div>
+        <input class="api-input" type="password" id="ai-key" placeholder="OpenRouter API key" />
+        <button class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:8px;" onclick="analyzeCircuit()">Analyze with AI</button>
+        <button class="btn btn-soft" style="width:100%;justify-content:center;" onclick="sendToESP32()">Send to ESP32</button>
+        <div class="output" id="ai-output" style="margin-top:10px;">AI response will appear here.</div>
+      </div>
+
+      <div class="info-card">
+        <div class="section-title">State Viewer</div>
+        <div class="state-box" id="state-box">{}</div>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+const DEFS = {
+  battery: {
+    label: 'Battery',
+    pins: 2,
+    polar: true,
+    conductive: false,
+    variants: [{ id: 'bat-9v', label: '9V battery' }],
+    icon: (w, h) => `
+      <svg viewBox="0 0 60 36" width="${w}" height="${h}">
+        <line x1="5" y1="18" x2="18" y2="18" stroke="#334155" stroke-width="2.6"/>
+        <line x1="18" y1="9" x2="18" y2="27" stroke="#2563eb" stroke-width="4"/>
+        <line x1="24" y1="12" x2="24" y2="24" stroke="#64748b" stroke-width="2"/>
+        <line x1="31" y1="9" x2="31" y2="27" stroke="#2563eb" stroke-width="4"/>
+        <line x1="37" y1="12" x2="37" y2="24" stroke="#64748b" stroke-width="2"/>
+        <line x1="37" y1="18" x2="55" y2="18" stroke="#334155" stroke-width="2.6"/>
+        <text x="11" y="9" font-size="9" fill="#2563eb" font-weight="700">+</text>
+        <text x="44" y="9" font-size="9" fill="#111827" font-weight="700">−</text>
+      </svg>`
+  },
+  resistor: {
+    label: 'Resistor',
+    pins: 2,
+    polar: false,
+    conductive: true,
+    variants: [
+      { id: 'res-220', label: '220Ω', color: '#ea580c' },
+      { id: 'res-1k', label: '1kΩ', color: '#ca8a04' },
+      { id: 'res-10k', label: '10kΩ', color: '#a16207' }
+    ],
+    icon: (w, h, color='#ea580c') => `
+      <svg viewBox="0 0 60 36" width="${w}" height="${h}">
+        <line x1="5" y1="18" x2="16" y2="18" stroke="#334155" stroke-width="2.4"/>
+        <rect x="16" y="11" width="28" height="14" rx="4" fill="#fff5e8" stroke="${color}" stroke-width="2"/>
+        <line x1="44" y1="18" x2="55" y2="18" stroke="#334155" stroke-width="2.4"/>
+        <line x1="22" y1="11" x2="22" y2="25" stroke="${color}" stroke-width="1.6"/>
+        <line x1="28" y1="11" x2="28" y2="25" stroke="${color}" stroke-width="1.6"/>
+        <line x1="34" y1="11" x2="34" y2="25" stroke="${color}" stroke-width="1.6"/>
+      </svg>`
+  },
+  wire: {
+    label: 'Wire',
+    pins: 2,
+    polar: false,
+    conductive: true,
+    variants: [
+      { id: 'wire-red', label: 'Red wire', color: '#dc2626' },
+      { id: 'wire-blue', label: 'Blue wire', color: '#2563eb' },
+      { id: 'wire-black', label: 'Black wire', color: '#111827' },
+      { id: 'wire-green', label: 'Green wire', color: '#16a34a' }
+    ],
+    icon: (w, h, color='#dc2626') => `
+      <svg viewBox="0 0 60 36" width="${w}" height="${h}">
+        <path d="M6 20 C18 8, 42 28, 54 16" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round"/>
+        <circle cx="6" cy="20" r="3.2" fill="${color}"/>
+        <circle cx="54" cy="16" r="3.2" fill="${color}"/>
+      </svg>`
+  },
+  bulb: {
+    label: 'LED Bulb',
+    pins: 2,
+    polar: true,
+    conductive: false,
+    variants: [
+      { id: 'led-red', label: 'Red LED', color: '#ef4444' },
+      { id: 'led-green', label: 'Green LED', color: '#22c55e' },
+      { id: 'led-yellow', label: 'Yellow LED', color: '#f59e0b' }
+    ],
+    icon: (w, h, color='#f59e0b') => `
+      <svg viewBox="0 0 60 36" width="${w}" height="${h}">
+        <line x1="7" y1="27" x2="21" y2="18" stroke="#334155" stroke-width="2.2"/>
+        <line x1="39" y1="18" x2="53" y2="27" stroke="#334155" stroke-width="2.2"/>
+        <path d="M21 18 C21 9, 39 9, 39 18 L39 18 C39 24, 34 29, 30 29 C26 29, 21 24, 21 18 Z"
+              fill="${color}" fill-opacity="0.75" stroke="#334155" stroke-width="2"/>
+        <line x1="24" y1="11" x2="20" y2="6" stroke="${color}" stroke-width="2"/>
+        <line x1="34" y1="11" x2="30" y2="6" stroke="${color}" stroke-width="2"/>
+        <line x1="25" y1="6" x2="20" y2="6" stroke="${color}" stroke-width="2"/>
+        <line x1="35" y1="6" x2="30" y2="6" stroke="${color}" stroke-width="2"/>
+        <text x="10" y="12" font-size="8" fill="#dc2626" font-weight="700">A+</text>
+        <text x="41" y="12" font-size="8" fill="#111827" font-weight="700">K−</text>
+      </svg>`
+  },
+  capacitor: {
+    label: 'Capacitor',
+    pins: 2,
+    polar: true,
+    conductive: false,
+    variants: [{ id: 'cap-100u', label: '100µF electrolytic' }],
+    icon: (w, h) => `
+      <svg viewBox="0 0 60 36" width="${w}" height="${h}">
+        <line x1="6" y1="18" x2="22" y2="18" stroke="#334155" stroke-width="2.3"/>
+        <line x1="22" y1="9" x2="22" y2="27" stroke="#2563eb" stroke-width="3.6"/>
+        <line x1="30" y1="9" x2="30" y2="27" stroke="#64748b" stroke-width="2.4"/>
+        <line x1="30" y1="18" x2="54" y2="18" stroke="#334155" stroke-width="2.3"/>
+        <text x="16" y="10" font-size="9" fill="#2563eb" font-weight="700">+</text>
+      </svg>`
+  },
+  transistor: {
+    label: 'Transistor',
+    pins: 3,
+    polar: false,
+    conductive: false,
+    variants: [{ id: 'npn', label: 'NPN transistor' }],
+    icon: (w, h) => `
+      <svg viewBox="0 0 60 36" width="${w}" height="${h}">
+        <circle cx="31" cy="18" r="12" fill="none" stroke="#64748b" stroke-width="2"/>
+        <line x1="7" y1="18" x2="24" y2="18" stroke="#334155" stroke-width="2.2"/>
+        <line x1="24" y1="10" x2="24" y2="26" stroke="#111827" stroke-width="3"/>
+        <line x1="24" y1="12" x2="41" y2="6" stroke="#334155" stroke-width="2.2"/>
+        <line x1="24" y1="24" x2="41" y2="30" stroke="#334155" stroke-width="2.2"/>
+        <text x="27" y="21" font-size="9" fill="#64748b" font-weight="700">N</text>
+      </svg>`
+  }
+};
+
+const TYPE_COLORS = {
+  battery: '#2563eb',
+  resistor: '#ea580c',
+  wire: '#dc2626',
+  bulb: '#f59e0b',
+  capacitor: '#2563eb',
+  transistor: '#64748b'
+};
+
+let N = 8;
+let CELL = 56;
+let state = { components: {} };
+let compCounter = 0;
+let placingComp = null;
+let selectedId = null;
+let draggingPin = null;
+let analysisCache = null;
+
+function uid(){
+  compCounter += 1;
+  return 'c' + compCounter;
+}
+
+function holeId(col, row){
+  return `x${col+1}y${row+1}`;
+}
+
+function parseHole(id){
+  const m = /^x(\d+)y(\d+)$/.exec(id);
+  if (!m) return null;
+  return { col: parseInt(m[1], 10)-1, row: parseInt(m[2], 10)-1 };
+}
+
+function getHoleCenter(id){
+  const p = parseHole(id);
+  if (!p) return null;
+  return { x: p.col * CELL + CELL/2, y: p.row * CELL + CELL/2 };
+}
+
+function variantColor(variantId, type){
+  const def = DEFS[type];
+  const v = def.variants.find(x => x.id === variantId);
+  return v?.color || TYPE_COLORS[type];
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;');
+}
+
+function buildPalette(){
+  const palette = document.getElementById('palette');
+  palette.innerHTML = '';
+
+  Object.entries(DEFS).forEach(([type, def]) => {
+    const group = document.createElement('div');
+    group.className = 'palette-group';
+
+    const title = document.createElement('div');
+    title.className = 'section-title';
+    title.textContent = def.label;
+    group.appendChild(title);
+
+    def.variants.forEach(variant => {
+      const color = variantColor(variant.id, type);
+      const card = document.createElement('div');
+      card.className = 'comp-card';
+      card.draggable = true;
+      card.innerHTML = `
+        <div class="comp-icon">${def.icon(48, 30, color)}</div>
+        <div style="min-width:0;">
+          <div class="comp-name">${def.label}</div>
+          <div class="comp-meta">${variant.label}</div>
+          <div class="chip-row">
+            <span class="chip">${def.pins} pin${def.pins > 1 ? 's' : ''}</span>
+            ${def.conductive ? '<span class="chip">conductive</span>' : '<span class="chip">special</span>'}
+            ${def.polar ? '<span class="chip polar">polarized</span>' : ''}
+          </div>
+        </div>
+      `;
+
+      card.addEventListener('dragstart', (e) => {
+        placingComp = { type, variantId: variant.id };
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('text/plain', JSON.stringify(placingComp));
+      });
+
+      card.addEventListener('dragend', () => {
+        placingComp = null;
+      });
+
+      group.appendChild(card);
+    });
+
+    palette.appendChild(group);
+  });
+}
+
+function buildGrid(){
+  const grid = document.getElementById('hole-grid');
+  grid.innerHTML = '';
+  grid.style.gridTemplateColumns = `repeat(${N}, ${CELL}px)`;
+
+  for(let r = 0; r < N; r++){
+    for(let c = 0; c < N; c++){
+      const cell = document.createElement('div');
+      cell.className = 'hole';
+      cell.dataset.col = c;
+      cell.dataset.row = r;
+      cell.dataset.hid = holeId(c, r);
+      cell.innerHTML = `<div class="hole-dot"></div><div class="hole-label">${holeId(c, r)}</div>`;
+      cell.addEventListener('click', () => {
+        if (selectedId) deselect();
+      });
+      grid.appendChild(cell);
+    }
+  }
+
+  const size = N * CELL;
+  const board = document.getElementById('board');
+  const svg = document.getElementById('comp-svg');
+  board.style.width = `${size}px`;
+  board.style.height = `${size}px`;
+  svg.setAttribute('width', size);
+  svg.setAttribute('height', size);
+}
+
+function addComponent(type, variantId, pinHoles){
+  const def = DEFS[type];
+  const id = uid();
+  const color = variantColor(variantId, type);
+
+  const names = type === 'bulb'
+    ? ['A', 'K']
+    : type === 'battery'
+    ? ['+', '-']
+    : type === 'transistor'
+    ? ['B', 'C', 'E']
+    : Array.from({ length: def.pins }, (_, i) => String.fromCharCode(65 + i));
+
+  const comp = {
+    id,
+    type,
+    variantId,
+    color,
+    pins: pinHoles.map((hole, i) => ({
+      name: names[i] || String.fromCharCode(65 + i),
+      connected_to: hole
+    }))
+  };
+
+  if (def.polar) {
+    if (type === 'bulb') comp.polarity = { positive: 'A', negative: 'K' };
+    else if (type === 'battery') comp.polarity = { positive: '+', negative: '-' };
+    else comp.polarity = { positive: names[0], negative: names[1] };
+  }
+
+  state.components[id] = comp;
+  fullRefresh();
+}
+
+function clearBoard(){
+  state = { components: {} };
+  compCounter = 0;
+  selectedId = null;
+  draggingPin = null;
+  analysisCache = null;
+  hideDeleteBadge();
+  fullRefresh();
+}
+
+function fitBoard(){
+  document.getElementById('board-area').scrollTo({
+    top: 0,
+    left: 0,
+    behavior: 'smooth'
+  });
+}
+
+function markOccupied(){
+  document.querySelectorAll('.hole').forEach(h => {
+    h.classList.remove('occupied', 'snap-target', 'pin-snap-target', 'power-plus', 'power-minus');
+  });
+
+  Object.values(state.components).forEach(comp => {
+    comp.pins.forEach(pin => {
+      const el = document.querySelector(`.hole[data-hid="${pin.connected_to}"]`);
+      if (el) el.classList.add('occupied');
+    });
+  });
+
+  const analysis = analyzeState();
+  analysis.batteries.forEach(bat => {
+    const plusEl = document.querySelector(`.hole[data-hid="${bat.plus}"]`);
+    const minusEl = document.querySelector(`.hole[data-hid="${bat.minus}"]`);
+    if (plusEl) plusEl.classList.add('power-plus');
+    if (minusEl) minusEl.classList.add('power-minus');
+  });
+}
+
+function makeSvgEl(name, attrs = {}){
+  const el = document.createElementNS('http://www.w3.org/2000/svg', name);
+  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+  return el;
+}
+
+function addText(g, x, y, txt, attrs = {}){
+  const t = makeSvgEl('text', { x, y, ...attrs });
+  t.textContent = txt;
+  g.appendChild(t);
+  return t;
+}
+
+function makeLead(p0, p1, color = '#475569', width = 2.2){
+  return makeSvgEl('line', {
+    x1: p0.x, y1: p0.y, x2: p1.x, y2: p1.y,
+    stroke: color, 'stroke-width': width, 'stroke-linecap': 'round'
+  });
+}
+
+function makePadDot(p, color = '#334155', r = 4.5){
+  return makeSvgEl('circle', { cx: p.x, cy: p.y, r, fill: color });
+}
+
+function renderComponents(){
+  const svg = document.getElementById('comp-svg');
+  svg.innerHTML = '';
+
+  const analysis = analyzeState();
+
+  Object.values(state.components).forEach(comp => {
+    const def = DEFS[comp.type];
+    const points = comp.pins.map(pin => getHoleCenter(pin.connected_to));
+    if (points.some(p => !p)) return;
+
+    const g = makeSvgEl('g', { class: 'comp-el', 'data-id': comp.id });
+    const isSelected = selectedId === comp.id;
+
+    if (comp.type === 'wire') {
+      const [a, b] = points;
+      g.appendChild(makeLead(a, b, comp.color, 4.2));
+      g.appendChild(makePadDot(a, comp.color, 4.4));
+      g.appendChild(makePadDot(b, comp.color, 4.4));
+    }
+
+    if (comp.type === 'resistor') {
+      const [a, b] = points;
+      const mx = (a.x + b.x)/2;
+      const my = (a.y + b.y)/2;
+      const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      const bodyW = Math.max(24, Math.min(34, len * 0.44));
+      const bodyH = 12;
+
+      g.appendChild(makeLead(a, b, '#64748b', 2.2));
+      g.appendChild(makeSvgEl('rect', {
+        x: mx - bodyW/2, y: my - bodyH/2, width: bodyW, height: bodyH, rx: 4,
+        fill: '#fff5e8', stroke: comp.color, 'stroke-width': 2,
+        transform: `rotate(${ang}, ${mx}, ${my})`
+      }));
+
+      [-9, -3, 3, 9].forEach(offset => {
+        g.appendChild(makeSvgEl('line', {
+          x1: mx + offset, y1: my - bodyH/2,
+          x2: mx + offset, y2: my + bodyH/2,
+          stroke: comp.color, 'stroke-width': 1.2,
+          transform: `rotate(${ang}, ${mx}, ${my})`
+        }));
+      });
+
+      g.appendChild(makePadDot(a, '#64748b'));
+      g.appendChild(makePadDot(b, '#64748b'));
+    }
+
+    if (comp.type === 'battery') {
+      const [a, b] = points;
+      const mx = (a.x + b.x)/2;
+      const my = (a.y + b.y)/2;
+      const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+
+      g.appendChild(makeLead(a, { x: mx - 10, y: my }, '#2563eb', 2.3));
+      g.appendChild(makeLead({ x: mx + 12, y: my }, b, '#334155', 2.3));
+
+      const bars = [
+        { x: mx - 12, h: 20, w: 4, c: '#2563eb' },
+        { x: mx - 4,  h: 12, w: 2.2, c: '#64748b' },
+        { x: mx + 4,  h: 20, w: 4, c: '#2563eb' },
+        { x: mx + 12, h: 12, w: 2.2, c: '#64748b' }
+      ];
+
+      bars.forEach(bar => {
+        g.appendChild(makeSvgEl('line', {
+          x1: bar.x, y1: my - bar.h/2,
+          x2: bar.x, y2: my + bar.h/2,
+          stroke: bar.c, 'stroke-width': bar.w,
+          transform: `rotate(${ang}, ${mx}, ${my})`
+        }));
+      });
+
+      addText(g, mx - 20, my - 12, '+', {
+        'font-size': 10, fill: '#dc2626', 'font-weight': '700'
+      });
+      addText(g, mx + 16, my - 12, '−', {
+        'font-size': 11, fill: '#111827', 'font-weight': '700'
+      });
+
+      g.appendChild(makePadDot(a, '#dc2626'));
+      g.appendChild(makePadDot(b, '#111827'));
+    }
+
+    if (comp.type === 'capacitor') {
+      const [a, b] = points;
+      const mx = (a.x + b.x)/2;
+      const my = (a.y + b.y)/2;
+      const ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+
+      g.appendChild(makeLead(a, { x: mx - 6, y: my }, '#64748b', 2.2));
+      g.appendChild(makeLead({ x: mx + 6, y: my }, b, '#64748b', 2.2));
+
+      g.appendChild(makeSvgEl('line', {
+        x1: mx - 5, y1: my - 11, x2: mx - 5, y2: my + 11,
+        stroke: '#2563eb', 'stroke-width': 3.5,
+        transform: `rotate(${ang}, ${mx}, ${my})`
+      }));
+      g.appendChild(makeSvgEl('line', {
+        x1: mx + 5, y1: my - 11, x2: mx + 5, y2: my + 11,
+        stroke: '#64748b', 'stroke-width': 2.4,
+        transform: `rotate(${ang}, ${mx}, ${my})`
+      }));
+
+      addText(g, mx - 12, my - 12, '+', {
+        'font-size': 10, fill: '#2563eb', 'font-weight': '700'
+      });
+
+      g.appendChild(makePadDot(a, '#2563eb'));
+      g.appendChild(makePadDot(b, '#64748b'));
+    }
+
+    if (comp.type === 'bulb') {
+      const [a, b] = points;
+      const mx = (a.x + b.x)/2;
+      const my = (a.y + b.y)/2;
+      const on = analysis.bulbStatus[comp.id]?.on;
+      const reverse = analysis.bulbStatus[comp.id]?.reverse;
+      const glowColor = comp.color;
+
+      g.appendChild(makeLead(a, { x: mx - 9, y: my }, '#64748b', 2.2));
+      g.appendChild(makeLead({ x: mx + 9, y: my }, b, '#64748b', 2.2));
+
+      if (on) {
+        g.appendChild(makeSvgEl('circle', {
+          cx: mx, cy: my, r: 22,
+          fill: glowColor, opacity: 0.18, filter: 'blur(2px)'
+        }));
+        g.appendChild(makeSvgEl('circle', {
+          cx: mx, cy: my, r: 16,
+          fill: glowColor, opacity: 0.22
+        }));
+      }
+
+      g.appendChild(makeSvgEl('circle', {
+        cx: mx, cy: my, r: 11,
+        fill: glowColor,
+        opacity: on ? 0.95 : 0.42,
+        stroke: on ? '#ffffff' : '#475569',
+        'stroke-width': on ? 1.8 : 1.4
+      }));
+
+      g.appendChild(makeSvgEl('line', {
+        x1: mx - 4, y1: my - 4, x2: mx + 4, y2: my + 4,
+        stroke: 'rgba(255,255,255,0.7)', 'stroke-width': 1.5
+      }));
+
+      addText(g, a.x - 10, a.y - 10, '+', {
+        'font-size': 10, fill: '#dc2626', 'font-weight': '800'
+      });
+      addText(g, b.x + 6, b.y - 10, '−', {
+        'font-size': 11, fill: '#111827', 'font-weight': '800'
+      });
+
+      if (reverse) {
+        addText(g, mx - 15, my - 18, 'REV', {
+          'font-size': 9, fill: '#b42318', 'font-weight': '800'
+        });
+      } else if (on) {
+        addText(g, mx - 11, my - 18, 'ON', {
+          'font-size': 9, fill: '#15803d', 'font-weight': '800'
+        });
+      }
+
+      g.appendChild(makePadDot(a, '#dc2626'));
+      g.appendChild(makePadDot(b, '#111827'));
+    }
+
+    if (comp.type === 'transistor') {
+      const [b, c, e] = points;
+      const mx = (c.x + e.x)/2;
+      const my = (c.y + e.y)/2;
+
+      g.appendChild(makeSvgEl('circle', {
+        cx: mx, cy: my, r: 15,
+        fill: 'none', stroke: '#64748b', 'stroke-width': 2
+      }));
+      g.appendChild(makeLead(b, { x: mx - 6, y: my }, '#475569', 2.2));
+      g.appendChild(makeSvgEl('line', {
+        x1: mx - 6, y1: my - 10, x2: mx - 6, y2: my + 10,
+        stroke: '#111827', 'stroke-width': 3
+      }));
+      g.appendChild(makeLead({ x: mx - 6, y: my - 6 }, c, '#475569', 2.2));
+      g.appendChild(makeLead({ x: mx - 6, y: my + 6 }, e, '#475569', 2.2));
+
+      addText(g, b.x - 8, b.y - 8, 'B', { 'font-size': 9, fill: '#334155', 'font-weight': '700' });
+      addText(g, c.x + 5, c.y - 8, 'C', { 'font-size': 9, fill: '#334155', 'font-weight': '700' });
+      addText(g, e.x + 5, e.y + 14, 'E', { 'font-size': 9, fill: '#334155', 'font-weight': '700' });
+
+      g.appendChild(makePadDot(b));
+      g.appendChild(makePadDot(c));
+      g.appendChild(makePadDot(e));
+    }
+
+    if (isSelected) {
+      const xs = points.map(p => p.x);
+      const ys = points.map(p => p.y);
+      const pad = 22;
+      g.appendChild(makeSvgEl('rect', {
+        x: Math.min(...xs) - pad,
+        y: Math.min(...ys) - pad,
+        width: (Math.max(...xs) - Math.min(...xs)) + pad * 2,
+        height: (Math.max(...ys) - Math.min(...ys)) + pad * 2,
+        rx: 10,
+        class: 'sel-ring'
+      }));
+
+      comp.pins.forEach((pin, pinIdx) => {
+        const p = getHoleCenter(pin.connected_to);
+        const active = draggingPin && draggingPin.compId === comp.id && draggingPin.pinIdx === pinIdx;
+
+        g.appendChild(makeSvgEl('circle', {
+          cx: p.x, cy: p.y, r: 14,
+          fill: active ? 'rgba(245,158,11,0.22)' : 'rgba(37,99,235,0.16)',
+          stroke: active ? '#f59e0b' : '#2563eb',
+          'stroke-width': active ? 2.2 : 1.7,
+          'stroke-dasharray': active ? 'none' : '4 3',
+          class: 'pin-handle',
+          'data-comp-id': comp.id,
+          'data-pin-idx': pinIdx
+        }));
+
+        g.appendChild(makeSvgEl('circle', {
+          cx: p.x, cy: p.y, r: 4.8,
+          fill: active ? '#f59e0b' : '#2563eb',
+          'pointer-events': 'none'
+        }));
+
+        addText(g, p.x, p.y - 18, `${pin.name}:${pin.connected_to}`, {
+          'text-anchor': 'middle',
+          'font-size': 9,
+          fill: '#1d4ed8',
+          'font-family': 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          'font-weight': '700'
+        });
+      });
+    }
+
+    if (draggingPin && draggingPin.compId === comp.id && draggingPin.currentPos) {
+      const otherPins = comp.pins.filter((_, idx) => idx !== draggingPin.pinIdx);
+      if (otherPins.length) {
+        const anchor = getHoleCenter(otherPins[0].connected_to);
+        if (anchor) {
+          g.appendChild(makeSvgEl('line', {
+            x1: anchor.x, y1: anchor.y,
+            x2: draggingPin.currentPos.x, y2: draggingPin.currentPos.y,
+            class: 'pin-preview'
+          }));
+        }
+      }
+
+      g.appendChild(makeSvgEl('circle', {
+        cx: draggingPin.currentPos.x,
+        cy: draggingPin.currentPos.y,
+        r: 7,
+        fill: '#f59e0b',
+        opacity: 0.92
+      }));
+    }
+
+    g.addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectComp(comp.id);
+    });
+
+    svg.appendChild(g);
+  });
+}
+
+function selectComp(id){
+  selectedId = id;
+  renderComponents();
+  positionDeleteBadge();
+}
+
+function deselect(){
+  selectedId = null;
+  draggingPin = null;
+  renderComponents();
+  hideDeleteBadge();
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('pin-snap-target'));
+}
+
+function positionDeleteBadge(){
+  const badge = document.getElementById('delete-badge');
+  const comp = state.components[selectedId];
+  if (!comp) return hideDeleteBadge();
+
+  const pt = getHoleCenter(comp.pins[0].connected_to);
+  if (!pt) return hideDeleteBadge();
+
+  const boardRect = document.getElementById('board').getBoundingClientRect();
+  badge.style.left = `${boardRect.left + pt.x + 10}px`;
+  badge.style.top = `${boardRect.top + pt.y - 32}px`;
+  badge.classList.add('visible');
+}
+
+function hideDeleteBadge(){
+  document.getElementById('delete-badge').classList.remove('visible');
+}
+
+document.getElementById('delete-badge').addEventListener('click', () => {
+  if (!selectedId) return;
+  delete state.components[selectedId];
+  selectedId = null;
+  hideDeleteBadge();
+  fullRefresh();
+});
+
+document.getElementById('board-area').addEventListener('click', (e) => {
+  if (!e.target.closest('.comp-el') && !e.target.closest('.pin-handle')) {
+    deselect();
+  }
+});
+
+function getClosestHoleByScreen(clientX, clientY){
+  let best = null;
+  let bestD = Infinity;
+
+  document.querySelectorAll('.hole').forEach(h => {
+    const r = h.getBoundingClientRect();
+    const hx = r.left + r.width/2;
+    const hy = r.top + r.height/2;
+    const d = Math.hypot(clientX - hx, clientY - hy);
+    if (d < bestD) {
+      bestD = d;
+      best = h;
+    }
+  });
+
+  return bestD <= CELL * 0.9 ? best : null;
+}
+
+function boardLocalPoint(e){
+  const rect = document.getElementById('board').getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+function getClosestHoleByBoardPoint(x, y){
+  let best = null;
+  let bestD = Infinity;
+
+  document.querySelectorAll('.hole').forEach(h => {
+    const col = parseInt(h.dataset.col, 10);
+    const row = parseInt(h.dataset.row, 10);
+    const cx = col * CELL + CELL/2;
+    const cy = row * CELL + CELL/2;
+    const d = Math.hypot(x - cx, y - cy);
+    if (d < bestD) {
+      bestD = d;
+      best = h;
+    }
+  });
+
+  return bestD <= CELL * 0.8 ? best : null;
+}
+
+function suggestPlacement(type, col, row){
+  const def = DEFS[type];
+
+  function clamp(v){ return Math.max(0, Math.min(N - 1, v)); }
+
+  if (def.pins === 2) {
+    const right = col + 2 < N ? col + 2 : col - 2;
+    const c2 = clamp(right >= 0 ? right : col + 1);
+    if (c2 === col) return [holeId(col, row), holeId(clamp(col + 1), row)];
+    return [holeId(col, row), holeId(c2, row)];
+  }
+
+  if (def.pins === 3) {
+    return [
+      holeId(clamp(col), clamp(row)),
+      holeId(clamp(col + 2), clamp(row - 1)),
+      holeId(clamp(col + 2), clamp(row + 1))
+    ];
+  }
+
+  return [holeId(col, row)];
+}
+
+const boardArea = document.getElementById('board-area');
+const board = document.getElementById('board');
+const compSvg = document.getElementById('comp-svg');
+
+boardArea.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  board.classList.add('drag-over-board');
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('snap-target'));
+  const near = getClosestHoleByScreen(e.clientX, e.clientY);
+  if (near) near.classList.add('snap-target');
+});
+
+boardArea.addEventListener('dragleave', () => {
+  board.classList.remove('drag-over-board');
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('snap-target'));
+});
+
+boardArea.addEventListener('drop', (e) => {
+  e.preventDefault();
+  board.classList.remove('drag-over-board');
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('snap-target'));
+
+  if (!placingComp) return;
+  const target = getClosestHoleByScreen(e.clientX, e.clientY);
+  if (!target) return;
+
+  const col = parseInt(target.dataset.col, 10);
+  const row = parseInt(target.dataset.row, 10);
+  const pins = suggestPlacement(placingComp.type, col, row);
+  addComponent(placingComp.type, placingComp.variantId, pins);
+  placingComp = null;
+});
+
+compSvg.addEventListener('mousedown', (e) => {
+  const handle = e.target.closest('.pin-handle');
+  if (!handle) return;
+  e.stopPropagation();
+  e.preventDefault();
+
+  draggingPin = {
+    compId: handle.dataset.compId,
+    pinIdx: parseInt(handle.dataset.pinIdx, 10),
+    currentPos: null,
+    snapHole: null
+  };
+  renderComponents();
+});
+
+window.addEventListener('mousemove', (e) => {
+  if (!draggingPin) return;
+
+  const p = boardLocalPoint(e);
+  draggingPin.currentPos = p;
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('pin-snap-target'));
+
+  const near = getClosestHoleByBoardPoint(p.x, p.y);
+  if (near) {
+    near.classList.add('pin-snap-target');
+    draggingPin.snapHole = near.dataset.hid;
+  } else {
+    draggingPin.snapHole = null;
+  }
+
+  renderComponents();
+  positionDeleteBadge();
+});
+
+window.addEventListener('mouseup', () => {
+  if (!draggingPin) return;
+
+  const { compId, pinIdx, snapHole } = draggingPin;
+  const comp = state.components[compId];
+
+  if (comp && snapHole) {
+    const otherHoles = comp.pins
+      .map((p, idx) => idx === pinIdx ? null : p.connected_to)
+      .filter(Boolean);
+
+    if (!otherHoles.includes(snapHole)) {
+      comp.pins[pinIdx].connected_to = snapHole;
+    }
+  }
+
+  draggingPin = null;
+  document.querySelectorAll('.hole').forEach(h => h.classList.remove('pin-snap-target'));
+  fullRefresh();
+});
+
+function analyzeState(){
+  const conductiveGraph = new Map();
+  const batteries = [];
+  const components = Object.values(state.components);
+
+  function addNode(hole){
+    if (!conductiveGraph.has(hole)) conductiveGraph.set(hole, new Set());
+  }
+
+  function link(a, b){
+    addNode(a); addNode(b);
+    conductiveGraph.get(a).add(b);
+    conductiveGraph.get(b).add(a);
+  }
+
+  components.forEach(comp => {
+    if (comp.type === 'battery') {
+      batteries.push({
+        id: comp.id,
+        plus: comp.pins[0]?.connected_to,
+        minus: comp.pins[1]?.connected_to
+      });
+    }
+  });
+
+  components.forEach(comp => {
+    const def = DEFS[comp.type];
+    if (!def.conductive) return;
+    if (comp.pins.length >= 2) {
+      link(comp.pins[0].connected_to, comp.pins[1].connected_to);
+    }
+  });
+
+  function reachable(start){
+    const seen = new Set();
+    const q = [start];
+    seen.add(start);
+
+    while (q.length) {
+      const cur = q.shift();
+      const nbrs = conductiveGraph.get(cur);
+      if (!nbrs) continue;
+      nbrs.forEach(n => {
+        if (!seen.has(n)) {
+          seen.add(n);
+          q.push(n);
+        }
+      });
+    }
+    return seen;
+  }
+
+  const bulbStatus = {};
+  let anyCompleteLoop = false;
+  let bulbsOn = 0;
+  const messages = [];
+
+  const bulbs = components.filter(c => c.type === 'bulb');
+
+  bulbs.forEach(bulb => {
+    const anode = bulb.pins[0]?.connected_to;
+    const cathode = bulb.pins[1]?.connected_to;
+
+    let on = false;
+    let reverse = false;
+    let poweredBy = null;
+
+    batteries.forEach(bat => {
+      if (!bat.plus || !bat.minus) return;
+
+      const plusReach = reachable(bat.plus);
+      const minusReach = reachable(bat.minus);
+
+      const forwardGood = plusReach.has(anode) && minusReach.has(cathode);
+      const reverseBad = plusReach.has(cathode) && minusReach.has(anode);
+
+      if (forwardGood) {
+        on = true;
+        poweredBy = bat.id;
+        anyCompleteLoop = true;
+      } else if (reverseBad && !on) {
+        reverse = true;
+      }
+    });
+
+    if (on) bulbsOn += 1;
+    bulbStatus[bulb.id] = { on, reverse, poweredBy };
+  });
+
+  if (!batteries.length) {
+    messages.push('No battery found. Add a battery to power the board.');
+  } else if (!bulbs.length) {
+    messages.push('No LED bulb found. Add a polarized bulb to test the circuit.');
+  } else {
+    const onCount = bulbs.filter(b => bulbStatus[b.id]?.on).length;
+    const revCount = bulbs.filter(b => bulbStatus[b.id]?.reverse).length;
+
+    if (onCount > 0) {
+      messages.push(`${onCount} polarized bulb${onCount > 1 ? 's are' : ' is'} correctly powered.`);
+    }
+    if (revCount > 0) {
+      messages.push(`${revCount} bulb${revCount > 1 ? 's are' : ' is'} reverse-biased, so they stay off.`);
+    }
+    if (onCount === 0 && revCount === 0) {
+      messages.push('No complete powered loop detected yet.');
+    }
+  }
+
+  return {
+    conductiveGraph,
+    batteries,
+    bulbStatus,
+    bulbsOn,
+    anyCompleteLoop,
+    messages
+  };
+}
+
+function updateRightPanel(){
+  const box = document.getElementById('state-box');
+  box.textContent = JSON.stringify(state, null, 2);
+
+  const analysis = analyzeState();
+  analysisCache = analysis;
+
+  const componentCount = Object.keys(state.components).length;
+  document.getElementById('stat-components').textContent = `${componentCount} component${componentCount !== 1 ? 's' : ''}`;
+  document.getElementById('stat-bulbs').textContent = `${analysis.bulbsOn} bulb${analysis.bulbsOn !== 1 ? 's' : ''} on`;
+  document.getElementById('stat-circuit').textContent = analysis.anyCompleteLoop ? 'Closed power loop found' : 'No complete power loop';
+
+  const badge = document.getElementById('health-badge');
+  const health = document.getElementById('health-output');
+
+  if (!componentCount) {
+    badge.className = 'badge warn';
+    badge.textContent = 'Empty';
+    health.textContent = 'Start by dropping a battery, a resistor or wire, and a polarized bulb onto the perfboard.';
+    return;
+  }
+
+  const lines = [];
+  if (analysis.messages.length) lines.push(...analysis.messages);
+
+  const bulbs = Object.values(state.components).filter(c => c.type === 'bulb');
+  bulbs.forEach(b => {
+    const st = analysis.bulbStatus[b.id];
+    if (!st) return;
+    const colorName = DEFS.bulb.variants.find(v => v.id === b.variantId)?.label || 'LED bulb';
+    if (st.on) {
+      lines.push(`${colorName}: ON — anode is reachable from battery positive and cathode returns to battery negative.`);
+    } else if (st.reverse) {
+      lines.push(`${colorName}: OFF — polarity is reversed.`);
+    } else {
+      lines.push(`${colorName}: OFF — loop is open or incomplete.`);
+    }
+  });
+
+  if (analysis.anyCompleteLoop) {
+    badge.className = 'badge ok';
+    badge.textContent = 'Working';
+  } else {
+    const hasReverse = Object.values(analysis.bulbStatus).some(x => x.reverse);
+    badge.className = hasReverse ? 'badge bad' : 'badge warn';
+    badge.textContent = hasReverse ? 'Polarity error' : 'Incomplete';
+  }
+
+  health.textContent = lines.join('\n');
+}
+
+function fullRefresh(){
+  renderComponents();
+  markOccupied();
+  updateRightPanel();
+  if (selectedId) positionDeleteBadge();
+}
+
+function analyzeCurrentCircuit(){
+  updateRightPanel();
+  const out = document.getElementById('ai-output');
+  out.textContent = 'Local analysis complete.\n\n' + document.getElementById('health-output').textContent;
+}
+
+function loadDemo(name){
+  clearBoard();
+
+  if (name === 'led-series') {
+    addComponent('battery', 'bat-9v', ['x1y2', 'x1y6']);
+    addComponent('wire', 'wire-red', ['x1y2', 'x3y2']);
+    addComponent('resistor', 'res-220', ['x3y2', 'x5y2']);
+    addComponent('wire', 'wire-green', ['x5y2', 'x6y2']);
+    addComponent('bulb', 'led-yellow', ['x6y2', 'x6y5']);
+    addComponent('wire', 'wire-black', ['x6y5', 'x1y6']);
+  }
+
+  if (name === 'dual-led') {
+    addComponent('battery', 'bat-9v', ['x1y2', 'x1y7']);
+
+    addComponent('wire', 'wire-red', ['x1y2', 'x3y2']);
+    addComponent('resistor', 'res-220', ['x3y2', 'x5y2']);
+    addComponent('bulb', 'led-red', ['x5y2', 'x5y5']);
+    addComponent('wire', 'wire-black', ['x5y5', 'x1y7']);
+
+    addComponent('wire', 'wire-blue', ['x1y2', 'x3y4']);
+    addComponent('resistor', 'res-1k', ['x3y4', 'x6y4']);
+    addComponent('bulb', 'led-green', ['x6y4', 'x6y7']);
+    addComponent('wire', 'wire-black', ['x6y7', 'x1y7']);
+  }
+
+  if (name === 'lamp-loop') {
+    addComponent('battery', 'bat-9v', ['x2y2', 'x2y6']);
+    addComponent('wire', 'wire-red', ['x2y2', 'x5y2']);
+    addComponent('bulb', 'led-yellow', ['x5y2', 'x5y6']);
+    addComponent('wire', 'wire-black', ['x5y6', 'x2y6']);
+  }
+
+  fullRefresh();
+}
+
+async function analyzeCircuit(){
+  const key = document.getElementById('ai-key').value.trim();
+  const out = document.getElementById('ai-output');
+  const local = document.getElementById('health-output').textContent;
+
+  if (!key) {
+    out.textContent = 'Please enter your OpenRouter API key.';
+    return;
+  }
+
+  if (!Object.keys(state.components).length) {
+    out.textContent = 'No circuit on the board.';
+    return;
+  }
+
+  out.textContent = 'Analyzing with AI...';
+
+  const prompt = `
+You are an electronics expert.
+Analyze this perfboard simulator circuit.
+
+Important:
+- The "bulb" is a polarized LED-style bulb.
+- For bulb pins: first pin is positive/anode, second pin is negative/cathode.
+- For battery pins: first pin is positive, second pin is negative.
+- Wires and resistors are conductive.
+- Capacitor and transistor are present visually, but do not automatically create a DC closed lamp path in this simulator.
+- Use the local simulator analysis below as a hint, but still review the JSON carefully.
+
+Local analysis:
+${local}
+
+Circuit JSON:
+${JSON.stringify(state, null, 2)}
+
+Please respond with:
+1. What the circuit is doing
+2. Whether it is valid
+3. Any polarity mistakes
+4. Practical improvement suggestions
+`.trim();
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${key}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://perfboard-simulator.local',
+        'X-Title': 'Perfboard Simulator Pro'
+      },
+      body: JSON.stringify({
+        model: 'openai/gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 450
+      })
+    });
+
+    const data = await res.json();
+    if (data.choices && data.choices[0]?.message?.content) {
+      out.textContent = data.choices[0].message.content;
+    } else {
+      out.textContent = 'Error: ' + (data.error?.message || JSON.stringify(data));
+    }
+  } catch (err) {
+    out.textContent = 'Request failed: ' + err.message;
+  }
+}
+
+function sendToESP32(){
+  const out = document.getElementById('ai-output');
+  const payload = JSON.stringify({
+    ...state,
+    simulator_analysis: analysisCache || analyzeState()
+  }, null, 2);
+
+  out.textContent =
+    '[ESP32 mock]\n' +
+    'POST /api/upload\n' +
+    `Payload size: ${payload.length} bytes\n` +
+    'Status: 200 OK\n' +
+    'Device acknowledged circuit config.\n\n' +
+    payload.slice(0, 900) +
+    (payload.length > 900 ? '\n...' : '');
+}
+
+document.getElementById('grid-size').addEventListener('input', (e) => {
+  N = parseInt(e.target.value, 10);
+  document.getElementById('grid-size-label').textContent = `${N} × ${N}`;
+  clearBoard();
+  buildGrid();
+  fullRefresh();
+});
+
+function init(){
+  buildPalette();
+  buildGrid();
+  fullRefresh();
+  loadDemo('led-series');
+}
+
+init();
+</script>
+</body>
+</html>
