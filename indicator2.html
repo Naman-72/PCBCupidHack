@@ -1,0 +1,1169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Breadboard Simulator</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #e8e7e4;
+  --surface: #ffffff;
+  --surface2: #f4f3f0;
+  --border: rgba(0,0,0,0.11);
+  --border2: rgba(0,0,0,0.22);
+  --text: #1a1a18;
+  --text2: #5f5e5a;
+  --text3: #888780;
+  --accent: #185fa5;
+  --accent-bg: #e6f1fb;
+  --radius: 8px;
+  --danger: #a32d2d;
+  --snap-color: #1d9e75;
+  --warn: #854f0b;
+  --warn-bg: #faeeda;
+  --cell: 32px;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex; flex-direction: column;
+  overflow: hidden; font-size: 14px;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 0.5px solid var(--border);
+  padding: 0 1.25rem; height: 48px;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0; z-index: 10;
+}
+header h1 { font-size: 15px; font-weight: 500; letter-spacing: -0.01em; }
+.hdr-right { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--text2); }
+.hdr-btn {
+  padding: 4px 12px; border: 0.5px solid var(--border2);
+  border-radius: 6px; background: var(--surface2);
+  cursor: pointer; font-size: 12px; color: var(--text);
+  transition: background 0.12s;
+}
+.hdr-btn:hover { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+
+.layout {
+  display: grid;
+  grid-template-columns: 174px 1fr 264px;
+  flex: 1; overflow: hidden;
+}
+
+/* ── LEFT PALETTE ── */
+.sidebar {
+  background: var(--surface);
+  border-right: 0.5px solid var(--border);
+  overflow-y: auto; padding: 10px 8px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.sidebar-title {
+  font-size: 10px; font-weight: 500; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  padding: 2px 2px 7px;
+}
+.comp-card {
+  border: 0.5px solid var(--border); border-radius: var(--radius);
+  padding: 7px 9px; cursor: grab;
+  background: var(--surface2);
+  display: flex; align-items: center; gap: 8px;
+  user-select: none;
+  transition: border-color 0.13s, background 0.13s;
+}
+.comp-card:hover { border-color: var(--accent); background: var(--accent-bg); }
+.comp-card:active { cursor: grabbing; }
+.comp-icon { width: 38px; height: 20px; flex-shrink: 0; }
+.comp-name { font-size: 11px; font-weight: 500; }
+.comp-sub { font-size: 10px; color: var(--text3); }
+.badge-polar {
+  font-size: 8px; padding: 1px 4px; border-radius: 3px;
+  background: var(--warn-bg); color: var(--warn); font-weight: 500;
+}
+
+/* ── BOARD AREA ── */
+.board-area {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  overflow: auto; padding: 20px;
+  background: var(--bg); position: relative; gap: 8px;
+}
+
+/* ── BREADBOARD ── */
+#breadboard-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+#breadboard {
+  background: #ddd8c4;
+  border-radius: 10px;
+  border: 2.5px solid #b0a880;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+  padding: 8px 12px 8px 12px;
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* notch marks on the ends */
+#breadboard::before, #breadboard::after {
+  content: '';
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+  width: 28px; height: 7px;
+  background: #b0a880; border-radius: 0 0 6px 6px;
+}
+#breadboard::before { top: -2px; border-radius: 0 0 6px 6px; }
+#breadboard::after  { bottom: -2px; border-radius: 6px 6px 0 0; }
+
+.bb-col-header {
+  display: flex; align-items: center;
+  padding-left: 22px;
+  margin-bottom: 2px;
+}
+.bb-col-num {
+  flex-shrink: 0;
+  text-align: center;
+  font-size: 7.5px; color: #9a9070;
+  font-family: monospace;
+}
+
+/* RAIL ROW */
+.bb-rail-row {
+  display: flex; align-items: center;
+  position: relative;
+  padding: 1px 0;
+}
+.bb-rail-row.rail-plus { background: rgba(210,50,50,0.09); border-radius: 3px; }
+.bb-rail-row.rail-minus { background: rgba(40,100,200,0.09); border-radius: 3px; }
+
+.bb-rail-sign {
+  width: 18px; flex-shrink: 0;
+  font-size: 12px; font-weight: 700;
+  text-align: center; font-family: monospace;
+  line-height: 1;
+}
+.rail-plus .bb-rail-sign  { color: #c0322a; }
+.rail-minus .bb-rail-sign { color: #2255b0; }
+
+/* coloured rail lines */
+.bb-rail-row.rail-plus::after {
+  content: ''; position: absolute;
+  left: 18px; right: 0; height: 2px;
+  background: rgba(200,50,50,0.25);
+  top: 50%; transform: translateY(-50%);
+  pointer-events: none; z-index: 0;
+}
+.bb-rail-row.rail-minus::after {
+  content: ''; position: absolute;
+  left: 18px; right: 0; height: 2px;
+  background: rgba(40,100,200,0.25);
+  top: 50%; transform: translateY(-50%);
+  pointer-events: none; z-index: 0;
+}
+
+/* TERMINAL ROW */
+.bb-term-row {
+  display: flex; align-items: center;
+}
+.bb-row-label {
+  width: 18px; flex-shrink: 0;
+  font-size: 8.5px; font-family: monospace;
+  color: #8a8470; font-weight: 600;
+  text-align: right; padding-right: 3px;
+}
+
+/* GROUP GAP every 5 cols */
+.bb-gap { flex-shrink: 0; }
+
+/* CENTER DIVIDER */
+.bb-center-gap {
+  height: 18px; margin: 2px 0;
+  border-top: 1.5px dashed #b0a880;
+  border-bottom: 1.5px dashed #b0a880;
+  display: flex; align-items: center;
+  padding-left: 22px;
+}
+.bb-center-gap span {
+  font-size: 7px; color: #9a9070;
+  font-family: monospace; letter-spacing: 1.5px;
+}
+
+/* ── HOLES ── */
+.hole {
+  width: var(--cell); height: var(--cell);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 1px;
+  cursor: crosshair; position: relative; flex-shrink: 0;
+  z-index: 1;
+}
+.hole-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: #7a7060;
+  border: 1.5px solid #504838;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,255,255,0.08);
+  transition: background 0.1s, transform 0.1s;
+  position: relative; z-index: 2;
+}
+.hole.snap-target .hole-dot {
+  background: var(--snap-color); transform: scale(1.5); border-color: #0a5e40;
+}
+.hole.pin-snap-target .hole-dot {
+  background: #ef9f27; transform: scale(1.6); border-color: #a06010;
+}
+.hole.occupied .hole-dot { background: #185fa5; border-color: #0c3a7a; }
+.hole.rail-plus.occupied  .hole-dot { background: #c0322a; border-color: #821f1a; }
+.hole.rail-minus.occupied .hole-dot { background: #2255b0; border-color: #163580; }
+.hole-lbl {
+  font-size: 6px; color: #9a9070;
+  font-family: monospace; line-height: 1;
+  pointer-events: none;
+}
+
+/* ── COMP LAYER ── */
+.comp-layer {
+  position: absolute; top: 0; left: 0;
+  pointer-events: none; z-index: 10;
+}
+.comp-layer svg { overflow: visible; }
+.comp-el { pointer-events: all; cursor: pointer; }
+
+.sel-ring {
+  stroke: #185fa5; stroke-width: 2;
+  fill: none; stroke-dasharray: 5 3;
+}
+.pin-handle { cursor: grab; }
+.pin-snap-preview {
+  pointer-events: none; fill: none;
+  stroke: #ef9f27; stroke-width: 2.5;
+  stroke-dasharray: 5 3; opacity: 0.85;
+}
+
+/* DELETE BADGE */
+.delete-badge {
+  display: none; position: fixed;
+  background: var(--danger); color: #fff;
+  font-size: 10px; padding: 3px 9px;
+  border-radius: 5px; z-index: 50;
+  cursor: pointer; white-space: nowrap; pointer-events: all;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+.delete-badge.visible { display: block; }
+
+.drag-over-bb { outline: 2px dashed var(--snap-color); outline-offset: 4px; border-radius: 12px; }
+
+/* HINT BAR */
+.hint-bar {
+  font-size: 10px; color: var(--text3);
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+}
+
+/* ── RIGHT SIDEBAR ── */
+.sidebar-r {
+  background: var(--surface);
+  border-left: 0.5px solid var(--border);
+  overflow-y: auto; display: flex; flex-direction: column;
+}
+.rs-section {
+  border-bottom: 0.5px solid var(--border);
+  padding: 10px 11px;
+}
+.rs-section:last-child { border-bottom: none; }
+.rs-title {
+  font-size: 10px; font-weight: 500; color: var(--text3);
+  text-transform: uppercase; letter-spacing: 0.07em;
+  margin-bottom: 7px;
+}
+.state-box {
+  background: var(--surface2); border: 0.5px solid var(--border);
+  border-radius: var(--radius); padding: 7px;
+  font-size: 9px; font-family: monospace; color: var(--text2);
+  max-height: 100px; overflow-y: auto;
+  word-break: break-all; white-space: pre-wrap; line-height: 1.5;
+}
+.demo-btn {
+  display: block; width: 100%; text-align: left;
+  padding: 6px 9px; border: 0.5px solid var(--border);
+  border-radius: var(--radius); background: var(--surface2);
+  cursor: pointer; font-size: 11px; color: var(--text);
+  margin-bottom: 4px;
+  transition: border-color 0.13s, background 0.13s;
+}
+.demo-btn:hover { border-color: var(--accent); background: var(--accent-bg); color: var(--accent); }
+
+.ai-key {
+  width: 100%; padding: 6px 8px;
+  border: 0.5px solid var(--border); border-radius: var(--radius);
+  font-size: 11px; background: var(--surface2); color: var(--text);
+  margin-bottom: 5px; outline: none;
+}
+.ai-key:focus { border-color: var(--accent); }
+
+.ai-btn {
+  width: 100%; padding: 6px 9px;
+  border: 0.5px solid var(--border2); border-radius: var(--radius);
+  background: var(--surface2); cursor: pointer;
+  font-size: 11px; color: var(--text);
+  margin-bottom: 4px; text-align: left;
+  transition: background 0.12s;
+}
+.ai-btn:hover { background: #ece9e0; }
+.ai-btn.validate { background: #1d9e75; color: #fff; border-color: #1d9e75; }
+.ai-btn.validate:hover { background: #17875f; }
+.ai-btn.analyze  { background: var(--accent); color: #fff; border-color: var(--accent); }
+.ai-btn.analyze:hover  { background: #0e4b87; }
+
+.ai-output {
+  background: var(--surface2); border: 0.5px solid var(--border);
+  border-radius: var(--radius); padding: 8px;
+  font-size: 10.5px; color: var(--text2);
+  min-height: 56px; max-height: 140px;
+  overflow-y: auto; line-height: 1.55;
+  word-break: break-word; white-space: pre-wrap;
+  transition: border-color 0.2s, background 0.2s;
+}
+.ai-output.valid   { border-color: #1d9e75; background: #edfaf4; color: #0b5438; }
+.ai-output.invalid { border-color: #a32d2d; background: #fdf0f0; color: #7a1f1f; }
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Breadboard Simulator</h1>
+  <div class="hdr-right">
+    <span id="bb-size-lbl" style="color:var(--text3)">30 columns</span>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;">
+      Cols
+      <input type="range" id="bb-cols" min="10" max="60" value="30"
+        style="width:72px;accent-color:var(--accent);">
+    </label>
+    <button class="hdr-btn" onclick="clearBoard()">Clear</button>
+  </div>
+</header>
+
+<div class="layout">
+  <div class="sidebar" id="palette"></div>
+
+  <div class="board-area" id="board-area">
+    <div id="breadboard-wrap">
+      <div id="breadboard">
+        <div id="bb-inner"></div>
+      </div>
+      <div class="comp-layer" id="comp-layer">
+        <svg id="comp-svg" width="0" height="0"></svg>
+      </div>
+    </div>
+    <div class="hint-bar">
+      <span>⬡ Drag from palette to board</span>
+      <span>◎ Click component → drag blue pin handles to repin</span>
+      <span>✕ Click → Delete</span>
+    </div>
+    <div id="delete-badge" class="delete-badge">✕ Delete</div>
+  </div>
+
+  <div class="sidebar-r">
+    <div class="rs-section">
+      <div class="rs-title">State JSON</div>
+      <div class="state-box" id="state-box">{}</div>
+    </div>
+    <div class="rs-section">
+      <div class="rs-title">Demo Circuits</div>
+      <button class="demo-btn" onclick="loadDemo('blink')">LED blink circuit</button>
+      <button class="demo-btn" onclick="loadDemo('divider')">Voltage divider</button>
+      <button class="demo-btn" onclick="loadDemo('filter')">RC low-pass filter</button>
+    </div>
+    <div class="rs-section">
+      <div class="rs-title">AI Tools</div>
+      <input class="ai-key" type="password" id="ai-key" placeholder="OpenRouter API key">
+      <button class="ai-btn validate" onclick="validateCircuit()">✔ Validate Circuit</button>
+      <button class="ai-btn analyze"  onclick="analyzeCircuit()">⚡ Analyze Connections</button>
+      <button class="ai-btn"          onclick="sendToESP32()">→ Send to ESP32</button>
+      <div class="ai-output" id="ai-output">Validation &amp; analysis results appear here…</div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   COMPONENT DEFINITIONS
+═══════════════════════════════════════ */
+const DEFS = {
+  resistor:{
+    label:'Resistor', pins:2, polar:false,
+    variants:[{id:'res-a',label:'100Ω',color:'#e24b4a'},{id:'res-b',label:'10kΩ',color:'#ef9f27'}],
+    icon:c=>`<svg viewBox="0 0 40 20" width="40" height="20">
+      <line x1="2" y1="10" x2="9" y2="10" stroke="#888" stroke-width="2"/>
+      <rect x="9" y="5" width="22" height="10" rx="2" fill="${c==='#e24b4a'?'#fde8e8':'#fdf0d8'}" stroke="${c}" stroke-width="1.8"/>
+      <line x1="31" y1="10" x2="38" y2="10" stroke="#888" stroke-width="2"/>
+    </svg>`
+  },
+  capacitor:{
+    label:'Capacitor', pins:2, polar:true,
+    variants:[{id:'cap-e',label:'Electrolytic',color:'#185fa5'}],
+    icon:c=>`<svg viewBox="0 0 40 20" width="40" height="20">
+      <line x1="2" y1="10" x2="17" y2="10" stroke="#888" stroke-width="2"/>
+      <line x1="17" y1="3" x2="17" y2="17" stroke="${c}" stroke-width="3.5"/>
+      <line x1="22" y1="3" x2="22" y2="17" stroke="#888" stroke-width="2.5"/>
+      <line x1="22" y1="10" x2="38" y2="10" stroke="#888" stroke-width="2"/>
+      <text x="10" y="4" font-size="8" fill="${c}" font-family="monospace" font-weight="700">+</text>
+    </svg>`
+  },
+  battery:{
+    label:'Battery', pins:2, polar:true,
+    variants:[{id:'bat-9v',label:'9V',color:'#3b6d11'}],
+    icon:c=>`<svg viewBox="0 0 40 20" width="40" height="20">
+      <line x1="2" y1="10" x2="11" y2="10" stroke="#888" stroke-width="2"/>
+      <line x1="11" y1="4" x2="11" y2="16" stroke="#185fa5" stroke-width="4"/>
+      <line x1="15" y1="6" x2="15" y2="14" stroke="#888" stroke-width="2.2"/>
+      <line x1="19" y1="4" x2="19" y2="16" stroke="#185fa5" stroke-width="4"/>
+      <line x1="23" y1="6" x2="23" y2="14" stroke="#888" stroke-width="2.2"/>
+      <line x1="23" y1="10" x2="38" y2="10" stroke="#888" stroke-width="2"/>
+      <text x="6" y="4" font-size="8" fill="#185fa5" font-family="monospace" font-weight="700">+</text>
+    </svg>`
+  },
+  led:{
+    label:'LED', pins:2, polar:true,
+    variants:[
+      {id:'led-r',label:'Red',   color:'#e24b4a'},
+      {id:'led-g',label:'Green', color:'#639922'},
+      {id:'led-b',label:'Blue',  color:'#185fa5'},
+    ],
+    icon:c=>`<svg viewBox="0 0 40 20" width="40" height="20">
+      <line x1="2" y1="10" x2="13" y2="10" stroke="#888" stroke-width="2"/>
+      <polygon points="13,4 13,16 26,10" fill="${c}" opacity="0.82" stroke="${c}" stroke-width="1.2"/>
+      <line x1="26" y1="4" x2="26" y2="16" stroke="${c}" stroke-width="2.5"/>
+      <line x1="26" y1="10" x2="38" y2="10" stroke="#888" stroke-width="2"/>
+      <line x1="29" y1="6" x2="34" y2="1" stroke="${c}" stroke-width="1.3"/>
+      <line x1="33" y1="8" x2="38" y2="3" stroke="${c}" stroke-width="1.3"/>
+    </svg>`
+  },
+  wire:{
+    label:'Wire', pins:2, polar:false,
+    variants:[
+      {id:'wire-r', label:'Red',   color:'#e24b4a'},
+      {id:'wire-b', label:'Blue',  color:'#185fa5'},
+      {id:'wire-bk',label:'Black', color:'#2c2c2a'},
+      {id:'wire-g', label:'Green', color:'#3b6d11'},
+    ],
+    icon:c=>`<svg viewBox="0 0 40 20" width="40" height="20">
+      <line x1="2" y1="10" x2="38" y2="10" stroke="${c}" stroke-width="3.5" stroke-linecap="round"/>
+      <circle cx="2"  cy="10" r="3.5" fill="${c}"/>
+      <circle cx="38" cy="10" r="3.5" fill="${c}"/>
+    </svg>`
+  },
+  transistor:{
+    label:'Transistor', pins:3, polar:false,
+    variants:[{id:'npn',label:'NPN',color:'#5f5e5a'}],
+    icon:c=>`<svg viewBox="0 0 40 20" width="40" height="20">
+      <line x1="2" y1="10" x2="12" y2="10" stroke="#888" stroke-width="2"/>
+      <line x1="12" y1="3" x2="12" y2="17" stroke="${c}" stroke-width="3.5"/>
+      <line x1="12" y1="7"  x2="24" y2="3"  stroke="#888" stroke-width="2"/>
+      <line x1="12" y1="13" x2="24" y2="17" stroke="#888" stroke-width="2"/>
+      <circle cx="27" cy="10" r="9" fill="none" stroke="#888" stroke-width="1.8"/>
+    </svg>`
+  },
+};
+
+const VCOLOR = {
+  'res-a':'#e24b4a','res-b':'#ef9f27','cap-e':'#185fa5','bat-9v':'#3b6d11',
+  'led-r':'#e24b4a','led-g':'#639922','led-b':'#185fa5',
+  'wire-r':'#e24b4a','wire-b':'#185fa5','wire-bk':'#2c2c2a','wire-g':'#3b6d11',
+  'npn':'#5f5e5a'
+};
+
+/* ═══════════════════════════════════════
+   BREADBOARD GEOMETRY
+   Layout (rowIdx):
+     0  = top rail +
+     1  = top rail −
+     2  = row a   ─┐
+     3  = row b    │ terminal top
+     4  = row c    │
+     5  = row d    │
+     6  = row e   ─┘
+     [center gap]
+     7  = row f   ─┐
+     8  = row g    │ terminal bottom
+     9  = row h    │
+     10 = row i    │
+     11 = row j   ─┘
+     12 = bottom rail +
+     13 = bottom rail −
+═══════════════════════════════════════ */
+const ROW_LETTERS = ['a','b','c','d','e','f','g','h','i','j'];
+let COLS = 30;
+let state = { components:{} };
+let compCounter = 0;
+let selectedId = null;
+let placingComp = null;
+let draggingPin = null;
+
+const CELL = 32;
+
+/* Pixel Y for each rowIdx — computed relative to #breadboard content */
+/* We'll measure at runtime from DOM — more accurate than hardcoding */
+function getHoleEl(hid) {
+  return document.querySelector(`.hole[data-hid="${hid}"]`);
+}
+
+/* holeId encoding */
+function holeId(rowIdx, col) {
+  if (rowIdx===0)  return `rTP${col}`;
+  if (rowIdx===1)  return `rTM${col}`;
+  if (rowIdx===12) return `rBP${col}`;
+  if (rowIdx===13) return `rBM${col}`;
+  return ROW_LETTERS[rowIdx-2] + col;
+}
+
+function holeCenter(hid) {
+  const el = getHoleEl(hid);
+  if (!el) return null;
+  const bbWrap = document.getElementById('breadboard-wrap');
+  const wr = bbWrap.getBoundingClientRect();
+  const hr = el.getBoundingClientRect();
+  return {
+    x: hr.left - wr.left + hr.width/2,
+    y: hr.top  - wr.top  + hr.height/2
+  };
+}
+
+function uid() { return 'c'+(++compCounter); }
+
+/* ═══════════════════════════════════════
+   BUILD PALETTE
+═══════════════════════════════════════ */
+function buildPalette() {
+  const pal = document.getElementById('palette');
+  pal.innerHTML = '<div class="sidebar-title">Components</div>';
+  Object.entries(DEFS).forEach(([type,def]) => {
+    def.variants.forEach(v => {
+      const c = VCOLOR[v.id];
+      const card = document.createElement('div');
+      card.className = 'comp-card'; card.draggable = true;
+      card.innerHTML = `
+        <div class="comp-icon">${def.icon(c)}</div>
+        <div>
+          <div class="comp-name">${def.label}</div>
+          <div class="comp-sub">${v.label}${def.polar?' <span class="badge-polar">±</span>':''}</div>
+        </div>`;
+      card.addEventListener('dragstart', e => {
+        placingComp = {type, variantId:v.id, color:c};
+        e.dataTransfer.effectAllowed='copy';
+        e.dataTransfer.setData('text/plain',type);
+      });
+      card.addEventListener('dragend', ()=>{ placingComp=null; });
+      pal.appendChild(card);
+    });
+  });
+}
+
+/* ═══════════════════════════════════════
+   BUILD BREADBOARD DOM
+═══════════════════════════════════════ */
+function buildBreadboard() {
+  const inner = document.getElementById('bb-inner');
+  inner.innerHTML = '';
+
+  /* col header numbers */
+  const colHdr = document.createElement('div');
+  colHdr.style.cssText = `display:flex;align-items:center;padding-left:20px;margin-bottom:1px;`;
+  for (let c=1;c<=COLS;c++) {
+    if (c>1 && (c-1)%5===0) { const g=document.createElement('div'); g.style.cssText=`width:6px;flex-shrink:0;`; colHdr.appendChild(g); }
+    const n=document.createElement('div');
+    n.className='bb-col-num';
+    n.style.cssText=`width:${CELL}px;flex-shrink:0;text-align:center;font-size:7.5px;color:#9a9070;font-family:monospace;`;
+    n.textContent = (c%5===0)?c:'';
+    colHdr.appendChild(n);
+  }
+  inner.appendChild(colHdr);
+
+  function makeRail(rowIdx, sign, cls) {
+    const row = document.createElement('div');
+    row.className = `bb-rail-row ${cls}`;
+    const sg = document.createElement('div');
+    sg.className='bb-rail-sign'; sg.textContent=sign;
+    row.appendChild(sg);
+    for (let c=1;c<=COLS;c++) {
+      if (c>1 && (c-1)%5===0) { const g=document.createElement('div'); g.className='bb-gap'; g.style.cssText=`width:6px;flex-shrink:0;`; row.appendChild(g); }
+      row.appendChild(makeHoleEl(rowIdx, c, cls.includes('plus')?'rail-plus':'rail-minus'));
+    }
+    return row;
+  }
+
+  function makeTermRows(startRowIdx, letters) {
+    const wrap = document.createElement('div');
+    letters.forEach((letter,li) => {
+      const row = document.createElement('div');
+      row.className='bb-term-row';
+      const lbl=document.createElement('div');
+      lbl.className='bb-row-label'; lbl.textContent=letter;
+      row.appendChild(lbl);
+      for (let c=1;c<=COLS;c++) {
+        if (c>1 && (c-1)%5===0) { const g=document.createElement('div'); g.className='bb-gap'; g.style.cssText=`width:6px;flex-shrink:0;`; row.appendChild(g); }
+        row.appendChild(makeHoleEl(startRowIdx+li, c, ''));
+      }
+      wrap.appendChild(row);
+    });
+    return wrap;
+  }
+
+  inner.appendChild(makeRail(0, '+', 'bb-rail-row rail-plus'));
+  inner.appendChild(makeRail(1, '−', 'bb-rail-row rail-minus'));
+
+  const gap1=document.createElement('div'); gap1.style.height='6px'; inner.appendChild(gap1);
+  inner.appendChild(makeTermRows(2,['a','b','c','d','e']));
+
+  const div=document.createElement('div'); div.className='bb-center-gap';
+  div.innerHTML='<span>── ── ── ── DIP NOTCH ── ── ── ──</span>';
+  inner.appendChild(div);
+
+  inner.appendChild(makeTermRows(7,['f','g','h','i','j']));
+  const gap2=document.createElement('div'); gap2.style.height='6px'; inner.appendChild(gap2);
+
+  inner.appendChild(makeRail(12, '+', 'bb-rail-row rail-plus'));
+  inner.appendChild(makeRail(13, '−', 'bb-rail-row rail-minus'));
+
+  /* size SVG layer */
+  setTimeout(()=>{
+    const bbWrap = document.getElementById('breadboard-wrap');
+    const bb = document.getElementById('breadboard');
+    const wr = bbWrap.getBoundingClientRect();
+    const br = bb.getBoundingClientRect();
+    const svg = document.getElementById('comp-svg');
+    const layer = document.getElementById('comp-layer');
+    const w = wr.width, h = wr.height;
+    svg.setAttribute('width',w); svg.setAttribute('height',h);
+    layer.style.width=w+'px'; layer.style.height=h+'px';
+    markOccupied();
+    renderComponents();
+  }, 0);
+}
+
+function makeHoleEl(rowIdx, col, extraClass) {
+  const h = document.createElement('div');
+  h.className = 'hole' + (extraClass?' '+extraClass:'');
+  h.dataset.hid = holeId(rowIdx,col);
+  h.dataset.rowIdx = rowIdx;
+  h.dataset.col = col;
+  const dot = document.createElement('div'); dot.className='hole-dot';
+  h.appendChild(dot);
+  /* tiny coordinate label */
+  const lbl = document.createElement('div'); lbl.className='hole-lbl';
+  lbl.textContent = holeId(rowIdx,col);
+  h.appendChild(lbl);
+  return h;
+}
+
+/* ═══════════════════════════════════════
+   STATE & RENDERING
+═══════════════════════════════════════ */
+function addComponent(type,variantId,pinHoles) {
+  const id = uid();
+  const color = VCOLOR[variantId];
+  const def = DEFS[type];
+  const comp = {
+    id, type, variantId, color,
+    pins: pinHoles.map((hid,i)=>({name:String.fromCharCode(65+i),connected_to:hid}))
+  };
+  if (def.polar) comp.polarity={positive:'A',negative:'B'};
+  state.components[id]=comp;
+  renderComponents(); updateState(); markOccupied();
+}
+
+function renderComponents() {
+  const svg = document.getElementById('comp-svg');
+  svg.innerHTML='';
+
+  Object.values(state.components).forEach(comp=>{
+    const pins=comp.pins;
+    const p0=holeCenter(pins[0].connected_to);
+    const p1=pins[1]?holeCenter(pins[1].connected_to):null;
+    const p2=pins[2]?holeCenter(pins[2].connected_to):null;
+    if (!p0) return;
+
+    const g=svgG(); g.classList.add('comp-el'); g.dataset.id=comp.id;
+
+    drawComp(g,comp,p0,p1,p2);
+
+    /* selection */
+    if (selectedId===comp.id) {
+      const allPts=pins.map(p=>holeCenter(p.connected_to)).filter(Boolean);
+      if (allPts.length) {
+        const xs=allPts.map(p=>p.x), ys=allPts.map(p=>p.y);
+        g.appendChild(svgEl('rect',{
+          x:Math.min(...xs)-18, y:Math.min(...ys)-18,
+          width:Math.max(...xs)-Math.min(...xs)+36, height:Math.max(...ys)-Math.min(...ys)+36,
+          rx:8, class:'sel-ring'
+        }));
+      }
+
+      pins.forEach((pin,pinIdx)=>{
+        const pt=holeCenter(pin.connected_to); if (!pt) return;
+        const isAct=draggingPin&&draggingPin.compId===comp.id&&draggingPin.pinIdx===pinIdx;
+        const h=svgEl('circle',{
+          cx:pt.x, cy:pt.y, r:14,
+          fill: isAct?'rgba(239,159,39,0.28)':'rgba(24,95,165,0.18)',
+          stroke: isAct?'#ef9f27':'#185fa5',
+          'stroke-width': isAct?2.2:1.5,
+          'stroke-dasharray': isAct?'none':'4 2',
+          class:'pin-handle',
+          'data-comp-id':comp.id, 'data-pin-idx':pinIdx
+        });
+        const tt=document.createElementNS('http://www.w3.org/2000/svg','title');
+        tt.textContent=`Pin ${pin.name}: ${pin.connected_to} — drag to move`;
+        h.appendChild(tt); g.appendChild(h);
+
+        g.appendChild(svgEl('circle',{cx:pt.x,cy:pt.y,r:5,fill:isAct?'#ef9f27':'#185fa5','pointer-events':'none'}));
+
+        const tl=document.createElementNS('http://www.w3.org/2000/svg','text');
+        tl.setAttribute('x',pt.x); tl.setAttribute('y',pt.y-19);
+        tl.setAttribute('text-anchor','middle'); tl.setAttribute('font-size','8');
+        tl.setAttribute('fill','#185fa5'); tl.setAttribute('font-family','monospace');
+        tl.setAttribute('font-weight','700'); tl.setAttribute('pointer-events','none');
+        tl.textContent=pin.connected_to; g.appendChild(tl);
+      });
+
+      /* drag preview */
+      if (draggingPin&&draggingPin.compId===comp.id&&draggingPin.currentPos) {
+        const oi=draggingPin.pinIdx===0?1:0;
+        const op=pins[oi]?holeCenter(pins[oi].connected_to):null;
+        if (op) {
+          g.appendChild(svgEl('line',{
+            x1:op.x,y1:op.y,x2:draggingPin.currentPos.x,y2:draggingPin.currentPos.y,
+            class:'pin-snap-preview'
+          }));
+        }
+        g.appendChild(svgEl('circle',{
+          cx:draggingPin.currentPos.x,cy:draggingPin.currentPos.y,
+          r:7,fill:'#ef9f27',opacity:'0.85','pointer-events':'none'
+        }));
+        if (draggingPin.snapHole) {
+          const sp=holeCenter(draggingPin.snapHole);
+          if (sp) {
+            g.appendChild(svgEl('circle',{
+              cx:sp.x,cy:sp.y,r:12,
+              fill:'rgba(29,158,117,0.2)',stroke:'#1d9e75','stroke-width':2.2,
+              'pointer-events':'none'
+            }));
+            const sl=document.createElementNS('http://www.w3.org/2000/svg','text');
+            sl.setAttribute('x',sp.x);sl.setAttribute('y',sp.y-20);
+            sl.setAttribute('text-anchor','middle');sl.setAttribute('font-size','9');
+            sl.setAttribute('fill','#1d9e75');sl.setAttribute('font-family','monospace');
+            sl.setAttribute('font-weight','700');sl.setAttribute('pointer-events','none');
+            sl.textContent=draggingPin.snapHole; g.appendChild(sl);
+          }
+        }
+      }
+    }
+
+    g.addEventListener('click',e=>{e.stopPropagation();selectComp(comp.id);});
+    svg.appendChild(g);
+  });
+}
+
+function drawComp(g,comp,p0,p1,p2) {
+  const t=comp.type, c=comp.color;
+
+  if (t==='wire') {
+    if (!p1) return;
+    g.appendChild(makeLine(p0,p1,c,4));
+    g.appendChild(makeDot(p0,c,5));g.appendChild(makeDot(p1,c,5));
+
+  } else if (t==='resistor') {
+    if (!p1) return;
+    const {mx,my,ang,len}=mid(p0,p1);
+    g.appendChild(makeLine(p0,p1,'#aaa',1.5));
+    const bw=Math.min(len*0.52,34),bh=12;
+    g.appendChild(svgEl('rect',{
+      x:mx-bw/2,y:my-bh/2,width:bw,height:bh,rx:2.5,
+      fill:c==='#e24b4a'?'#fde8e8':'#fdf0d8',
+      stroke:c,'stroke-width':2,
+      transform:`rotate(${ang},${mx},${my})`
+    }));
+    g.appendChild(makeDot(p0,'#aaa',4));g.appendChild(makeDot(p1,'#aaa',4));
+
+  } else if (t==='capacitor') {
+    if (!p1) return;
+    const {mx,my,ang}=mid(p0,p1);
+    g.appendChild(makeLine(p0,{x:mx-3,y:my},'#aaa',1.5));
+    g.appendChild(makeLine({x:mx+4,y:my},p1,'#aaa',1.5));
+    g.appendChild(svgEl('line',{x1:mx-3,y1:my-10,x2:mx-3,y2:my+10,stroke:c,'stroke-width':4,transform:`rotate(${ang},${mx},${my})`}));
+    g.appendChild(svgEl('line',{x1:mx+4,y1:my-10,x2:mx+4,y2:my+10,stroke:'#888','stroke-width':2.5,transform:`rotate(${ang},${mx},${my})`}));
+    const tpl=document.createElementNS('http://www.w3.org/2000/svg','text');
+    tpl.setAttribute('x',mx-9);tpl.setAttribute('y',my-13);
+    tpl.setAttribute('font-size',10);tpl.setAttribute('fill',c);tpl.setAttribute('font-weight','700');
+    tpl.textContent='+';g.appendChild(tpl);
+    g.appendChild(makeDot(p0,c,4));g.appendChild(makeDot(p1,'#aaa',4));
+
+  } else if (t==='battery') {
+    if (!p1) return;
+    const {mx,my,ang}=mid(p0,p1);
+    g.appendChild(makeLine(p0,{x:mx-7,y:my},'#3b6d11',1.8));
+    g.appendChild(makeLine({x:mx+12,y:my},p1,'#3b6d11',1.8));
+    [[mx-7,4,16,'#185fa5'],[mx-2,2.2,11,'#aaa'],[mx+5,4,16,'#185fa5'],[mx+10,2.2,11,'#aaa']].forEach(([x,w,hh,sc])=>{
+      g.appendChild(svgEl('line',{x1:x,y1:my-hh/2,x2:x,y2:my+hh/2,stroke:sc,'stroke-width':w,transform:`rotate(${ang},${mx},${my})`}));
+    });
+    const bt=document.createElementNS('http://www.w3.org/2000/svg','text');
+    bt.setAttribute('x',mx-12);bt.setAttribute('y',my-13);
+    bt.setAttribute('font-size',10);bt.setAttribute('fill','#185fa5');bt.setAttribute('font-weight','700');
+    bt.textContent='+';g.appendChild(bt);
+    g.appendChild(makeDot(p0,'#185fa5',4));g.appendChild(makeDot(p1,'#aaa',4));
+
+  } else if (t==='led') {
+    if (!p1) return;
+    const {mx,my,ang,len}=mid(p0,p1);
+    g.appendChild(makeLine(p0,p1,'#aaa',1.5));
+    const sz=Math.min(len*0.32,13);
+    g.appendChild(svgEl('polygon',{
+      points:`${mx-sz},${my-sz} ${mx-sz},${my+sz} ${mx+sz},${my}`,
+      fill:c,opacity:'0.85',stroke:c,'stroke-width':1.2,
+      transform:`rotate(${ang},${mx},${my})`
+    }));
+    g.appendChild(svgEl('line',{x1:mx+sz,y1:my-sz,x2:mx+sz,y2:my+sz,stroke:c,'stroke-width':2.5,transform:`rotate(${ang},${mx},${my})`}));
+    g.appendChild(makeDot(p0,c,4));g.appendChild(makeDot(p1,c,4));
+
+  } else if (t==='transistor') {
+    if (!p1||!p2) return;
+    const mx=(p1.x+p2.x)/2, my=(p1.y+p2.y)/2;
+    const hx=(p0.x+mx)/2, hy=(p0.y+my)/2;
+    g.appendChild(makeLine(p0,{x:hx,y:hy},'#888',2));
+    g.appendChild(svgEl('line',{x1:hx,y1:p1.y,x2:hx,y2:p2.y,stroke:'#2c2c2a','stroke-width':3.5}));
+    g.appendChild(makeLine({x:hx,y:p1.y},p1,'#888',2));
+    g.appendChild(makeLine({x:hx,y:p2.y},p2,'#888',2));
+    g.appendChild(svgEl('circle',{cx:mx,cy:my,r:14,fill:'none',stroke:'#888','stroke-width':1.8}));
+    [p0,p1,p2].forEach(p=>g.appendChild(makeDot(p,'#5f5e5a',4)));
+  }
+}
+
+function mid(p0,p1) {
+  const dx=p1.x-p0.x,dy=p1.y-p0.y;
+  return {mx:(p0.x+p1.x)/2,my:(p0.y+p1.y)/2,ang:Math.atan2(dy,dx)*180/Math.PI,len:Math.hypot(dx,dy)};
+}
+
+function svgG() { return document.createElementNS('http://www.w3.org/2000/svg','g'); }
+function svgEl(tag,attrs) {
+  const el=document.createElementNS('http://www.w3.org/2000/svg',tag);
+  Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  return el;
+}
+function makeLine(p0,p1,color,w) {
+  return svgEl('line',{x1:p0.x,y1:p0.y,x2:p1.x,y2:p1.y,stroke:color,'stroke-width':w,'stroke-linecap':'round'});
+}
+function makeDot(p,color,r=4) {
+  return svgEl('circle',{cx:p.x,cy:p.y,r,fill:color});
+}
+
+function markOccupied() {
+  document.querySelectorAll('.hole').forEach(h=>h.classList.remove('occupied'));
+  Object.values(state.components).forEach(comp=>{
+    comp.pins.forEach(pin=>{
+      const el=getHoleEl(pin.connected_to);
+      if (el) el.classList.add('occupied');
+    });
+  });
+}
+
+function updateState() {
+  document.getElementById('state-box').textContent=JSON.stringify(state,null,2);
+}
+
+/* ═══════════════════════════════════════
+   SELECTION & DELETE
+═══════════════════════════════════════ */
+function selectComp(id) {
+  selectedId=id; renderComponents(); positionBadge();
+}
+function deselect() {
+  selectedId=null; draggingPin=null;
+  document.getElementById('delete-badge').classList.remove('visible');
+  document.querySelectorAll('.hole').forEach(h=>h.classList.remove('pin-snap-target','snap-target'));
+  renderComponents();
+}
+function positionBadge() {
+  const badge=document.getElementById('delete-badge');
+  const comp=state.components[selectedId];
+  if (!comp){badge.classList.remove('visible');return;}
+  const pt=holeCenter(comp.pins[0].connected_to); if(!pt) return;
+  const wr=document.getElementById('breadboard-wrap').getBoundingClientRect();
+  badge.style.left=(wr.left+pt.x+10)+'px';
+  badge.style.top=(wr.top+pt.y-32)+'px';
+  badge.classList.add('visible');
+}
+document.getElementById('delete-badge').addEventListener('click',()=>{
+  if(!selectedId) return;
+  delete state.components[selectedId];
+  selectedId=null;
+  document.getElementById('delete-badge').classList.remove('visible');
+  renderComponents();updateState();markOccupied();
+});
+document.getElementById('board-area').addEventListener('click',()=>deselect());
+
+/* ═══════════════════════════════════════
+   PIN DRAG
+═══════════════════════════════════════ */
+document.getElementById('comp-svg').addEventListener('mousedown',e=>{
+  const h=e.target.closest('.pin-handle'); if(!h) return;
+  e.stopPropagation();e.preventDefault();
+  draggingPin={
+    compId:h.getAttribute('data-comp-id'),
+    pinIdx:parseInt(h.getAttribute('data-pin-idx')),
+    currentPos:null,snapHole:null
+  };
+  renderComponents();
+});
+
+window.addEventListener('mousemove',e=>{
+  if(!draggingPin) return;
+  const wr=document.getElementById('breadboard-wrap').getBoundingClientRect();
+  draggingPin.currentPos={x:e.clientX-wr.left, y:e.clientY-wr.top};
+  document.querySelectorAll('.hole').forEach(h=>h.classList.remove('pin-snap-target'));
+  const near=closestHoleClient(e.clientX,e.clientY);
+  if(near){near.classList.add('pin-snap-target');draggingPin.snapHole=near.dataset.hid;}
+  else draggingPin.snapHole=null;
+  renderComponents();positionBadge();
+});
+
+window.addEventListener('mouseup',e=>{
+  if(!draggingPin) return;
+  const {compId,pinIdx,snapHole}=draggingPin;
+  const comp=state.components[compId];
+  if(comp&&snapHole){
+    const oi=pinIdx===0?1:0;
+    if(snapHole!==comp.pins[oi]?.connected_to){
+      comp.pins[pinIdx].connected_to=snapHole;
+      updateState();markOccupied();
+    }
+  }
+  document.querySelectorAll('.hole').forEach(h=>h.classList.remove('pin-snap-target'));
+  draggingPin=null;
+  renderComponents();positionBadge();
+});
+
+function closestHoleClient(cx,cy) {
+  let best=null,bestD=9999;
+  document.querySelectorAll('.hole').forEach(h=>{
+    const r=h.getBoundingClientRect();
+    const d=Math.hypot(cx-(r.left+r.width/2),cy-(r.top+r.height/2));
+    if(d<bestD){bestD=d;best=h;}
+  });
+  return bestD<CELL?best:null;
+}
+
+/* ═══════════════════════════════════════
+   DRAG & DROP FROM PALETTE
+═══════════════════════════════════════ */
+const boardArea=document.getElementById('board-area');
+const bbEl=document.getElementById('breadboard');
+
+boardArea.addEventListener('dragover',e=>{
+  e.preventDefault(); e.dataTransfer.dropEffect='copy';
+  bbEl.classList.add('drag-over-bb');
+  const near=closestHoleClient(e.clientX,e.clientY);
+  document.querySelectorAll('.hole').forEach(h=>h.classList.remove('snap-target'));
+  if(near) near.classList.add('snap-target');
+});
+boardArea.addEventListener('dragleave',e=>{
+  if(!bbEl.contains(e.relatedTarget)){
+    bbEl.classList.remove('drag-over-bb');
+    document.querySelectorAll('.hole').forEach(h=>h.classList.remove('snap-target'));
+  }
+});
+boardArea.addEventListener('drop',e=>{
+  e.preventDefault();
+  bbEl.classList.remove('drag-over-bb');
+  document.querySelectorAll('.hole').forEach(h=>h.classList.remove('snap-target'));
+  if(!placingComp) return;
+  const {type,variantId}=placingComp;
+  const def=DEFS[type];
+  const dropH=closestHoleClient(e.clientX,e.clientY); if(!dropH) return;
+  const ri=parseInt(dropH.dataset.rowIdx), col=parseInt(dropH.dataset.col);
+
+  if(def.pins===2){
+    const h0=holeId(ri,col);
+    const col2=col+2<=COLS?col+2:Math.max(1,col-2);
+    addComponent(type,variantId,[h0,holeId(ri,col2)]);
+  } else if(def.pins===3){
+    const h0=holeId(ri,col);
+    const riA=Math.max(2,ri<=6?ri-2:ri-2), riB=Math.min(ri<=6?6:11,ri+2);
+    addComponent(type,variantId,[h0,holeId(riA,Math.min(col+1,COLS)),holeId(riB,Math.min(col+1,COLS))]);
+  }
+});
+
+/* ═══════════════════════════════════════
+   CLEAR & DEMOS
+═══════════════════════════════════════ */
+function clearBoard() {
+  state={components:{}};compCounter=0;selectedId=null;
+  document.getElementById('delete-badge').classList.remove('visible');
+  const out=document.getElementById('ai-output');
+  out.className='ai-output';
+  out.textContent='Validation & analysis results appear here…';
+  renderComponents();updateState();markOccupied();
+}
+
+function loadDemo(name) {
+  clearBoard();
+
+  if (name === 'blink') {
+    // 9V battery across top rails
+    addComponent('battery', 'bat-9v', ['rTP1', 'rTM1']);
+
+    // + rail to top-half node 5
+    addComponent('wire', 'wire-r', ['rTP5', 'a5']);
+
+    // Resistor across center gap: top node 5 -> bottom node 5
+    addComponent('resistor', 'res-a', ['e5', 'f5']);
+
+    // LED from node 5 to node 8 on bottom half
+    addComponent('led', 'led-r', ['j5', 'j8']);
+
+    // Return to negative rail
+    addComponent('wire', 'wire-bk', ['j8', 'rTM8']);
+  }
+
+  else if (name === 'divider') {
+    // Battery on rails
+    addComponent('battery', 'bat-9v', ['rTP1', 'rTM1']);
+
+    // + to first resistor
+    addComponent('wire', 'wire-r', ['rTP5', 'a5']);
+
+    // R1: + rail side -> midpoint
+    addComponent('resistor', 'res-a', ['e5', 'f5']);
+
+    // R2: midpoint -> ground node
+    addComponent('resistor', 'res-b', ['j5', 'j10']);
+
+    // Ground return
+    addComponent('wire', 'wire-bk', ['j10', 'rTM10']);
+
+    // Optional output lead from divider midpoint
+    addComponent('wire', 'wire-b', ['f5', 'f8']);
+  }
+
+  else if (name === 'filter') {
+    // Battery on rails
+    addComponent('battery', 'bat-9v', ['rTP1', 'rTM1']);
+
+    // + to resistor input
+    addComponent('wire', 'wire-r', ['rTP5', 'a5']);
+
+    // Series resistor to output node
+    addComponent('resistor', 'res-b', ['e5', 'f5']);
+
+    // Capacitor from output node to ground
+    addComponent('capacitor', 'cap-e', ['j5', 'j10']);
+
+    // Ground return
+    addComponent('wire', 'wire-bk', ['j10', 'rTM10']);
+
+    // Optional output lead
+    addComponent('wire', 'wire-b', ['f5', 'f8']);
+  }
+}
+
+/* ═══════════════════════════════════════
+   COLS SLIDER
+═══════════════════════════════════════ */
+document.getElementById('bb-cols').addEventListener('input',e=>{
+  COLS=parseInt(e.target.value);
+  document.getElementById('bb-size-lbl').textContent=`${COLS} columns`;
+  clearBoard();buildBreadboard();
+});
+
+/* ═══════════════════════════════════════
+   AI FUNCTIONS
+═══════════════════════════════════════ */
+async function callAI(system,user) {
+  const key=document.getElementById('ai-key').value.trim();
+  const out=document.getElementById('ai-output');
+  if(!key){out.textContent='Please enter your OpenRouter API key.';return null;}
+  if(!Object.keys(state.components).length){out.textContent='No components on board.';return null;}
+  out.className='ai-output';out.textContent='Thinking…';
+  try {
+    const res=await fetch('https://openrouter.ai/api/v1/chat/completions',{
+      method:'POST',
+      headers:{
+        'Authorization':`Bearer ${key}`,
+        'Content-Type':'application/json',
+        'HTTP-Referer':'https://breadboard-sim.local',
+        'X-Title':'Breadboard Simulator'
+      },
+      body:JSON.stringify({
+        model:'openai/gpt-4o-mini',
+        messages:[{role:'system',content:system},{role:'user',content:user}],
+        max_tokens:520
+      })
+    });
+    const data=await res.json();
+    if(data.choices?.[0]) return data.choices[0].message.content;
+    out.textContent='API error: '+(data.error?.message||JSON.stringify(data));
+    return null;
+  } catch(err){out.textContent='Request failed: '+err.message;return null;}
+}
+
+async function validateCircuit() {
+  const sys=`You are a professional electronics engineer reviewing a breadboard circuit.
+Your task: validate whether the circuit is correct, and would work good
+Check for: short circuits etc 
+Based on component types and connections, determine if the circuit makes electrical sense.
+Be specific: mention exact hole IDs that are correct or problematic.
+Do not give vague answers.`;
+  const user=`Validate this breadboard circuit:\n${JSON.stringify(state,null,2)}\n\nIs this circuit correct and safe to power on?`;
+  const result=await callAI(sys,user);
+  if(!result) return;
+  const out=document.getElementById('ai-output');
+  out.textContent=result;
+  if(result.startsWith('✔')) out.className='ai-output valid';
+  else if(result.startsWith('✘')) out.className='ai-output invalid';
+  else out.className='ai-output';
+}
+
+async function analyzeCircuit() {
+  const sys=`You are an electronics expert. Analyze the breadboard circuit described in JSON.
+Do Not Give Vague Answers. Keep under 200 words, be concise and practical.`;
+  const user=`Analyze this breadboard circuit:\n${JSON.stringify(state,null,2)}`;
+  const result=await callAI(sys,user);
+  if(result){const out=document.getElementById('ai-output');out.className='ai-output';out.textContent=result;}
+}
+
+function sendToESP32() {
+  const out=document.getElementById('ai-output');
+  const p=JSON.stringify(state,null,2);
+  out.className='ai-output';
+  out.textContent=`[ESP32 mock]\nPOST /api/circuit\nPayload: ${p.length} bytes\nStatus: 200 OK — Device acknowledged.\n\n`+p.slice(0,200)+(p.length>200?'…':'');
+}
+
+/* ═══════════════════════════════════════
+   INIT
+═══════════════════════════════════════ */
+buildPalette();
+buildBreadboard();
+updateState();
+
+/* re-size SVG on window resize */
+window.addEventListener('resize',()=>{
+  const bbWrap=document.getElementById('breadboard-wrap');
+  const wr=bbWrap.getBoundingClientRect();
+  const svg=document.getElementById('comp-svg');
+  const layer=document.getElementById('comp-layer');
+  svg.setAttribute('width',wr.width);svg.setAttribute('height',wr.height);
+  layer.style.width=wr.width+'px';layer.style.height=wr.height+'px';
+  renderComponents();
+});
+</script>
+</body>
+</html>
